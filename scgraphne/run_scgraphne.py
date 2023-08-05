@@ -1,36 +1,38 @@
 #!/usr/bin/env python
 # coding: utf-8
-import dgl
-import torch
-from torch import nn, optim
-import numpy as np
-import scanpy as sc
 import gc
 
-from .model import scGraphNE
+import dgl
+import numpy as np
+import scanpy as sc
+import torch
+from torch import nn, optim
+
 from .data import make_graph
+from .model import scGraphNE
 from .utils import calculate_metric, ZINBLoss, kmeans, louvain
 
+
 def run_scgraphne(adata: sc.AnnData,
-                    n_clusters = None,
-                    cl_type = None,
-                    gene_similarity: bool = False,
-                    alpha=0.9,
-                    n_layers: int = 2,
-                    feats_dim: int = 64,
-                    drop_out: float = 0.,
-                    gamma: int = 1,
-                    decoder = 'ZINB',
-                    lr: float = 0.1,
-                    iteration: int = 200,
-                    log_interval: int = 5,
-                    resolution: float = 1,
-                    sample_rate: float = 0.1,
-                    use_rep: str = 'feat',
-                    verbose: bool = True,
-                    return_all: bool = False,
-                    impute: bool = False
-                    ):
+                  n_clusters=None,
+                  cl_type=None,
+                  gene_similarity: bool = False,
+                  alpha=0.9,
+                  n_layers: int = 2,
+                  feats_dim: int = 64,
+                  drop_out: float = 0.,
+                  gamma: int = 1,
+                  decoder='ZINB',
+                  lr: float = 0.1,
+                  iteration: int = 200,
+                  log_interval: int = 5,
+                  resolution: float = 1,
+                  sample_rate: float = 0.1,
+                  use_rep: str = 'feat',
+                  verbose: bool = True,
+                  return_all: bool = False,
+                  impute: bool = False
+                  ):
     """
         Train scGraphNE.
         Parameters
@@ -41,16 +43,16 @@ def run_scgraphne(adata: sc.AnnData,
             Number of true cell type. If provided, you can select KMeans for clustering.
         cl_type
             Cell type information. If provided, calculate ARI and NMI after clustering.
+        gene_similarity
+            If True,consider correlation between genes and change bipartite graph structure.
+        alpha
+            When considering correlation between genes, set the proportional coefficient of BCE loss.
         n_layers
             Number of graph convolution layers in encoder.
         feats_dim
             The embedding dimensions of cells or genes in latent space.
         drop_out
             The probability of randomly dropping node embedding values.
-        gene_similarity
-            If True,consider correlation between genes and change bipartite graph structure.
-        alpha
-            When considering correlation between genes, set the proportional coefficient of BCE loss.
         gamma
             The proportional coefficient of ZINB loss.
         decoder
@@ -66,13 +68,13 @@ def run_scgraphne(adata: sc.AnnData,
         sample_rate
             The edge sampling rate of bipartite graph in decoder.
         use_rep
-            Use the indicated representation. 'X' or any key for .obsm is valid. Here we
-            use the cell embedding in the hidden space and store it in adata.obsm['feat'].
-        record_time
+            Use the indicated representation. 'X' or any key for .obsm is valid. Here we use the cell embedding in the hidden space and store it in adata.obsm['feat'].
+        verbose
+            If True, show details when running.
+        return_all
             If True, no clustering is performed during model training to save runtime.
         impute
-            Whether to output reconstructed gene expression matrix(optional). If True,
-            return imputed expression value and store it in adata.obsm['imputed'].
+            Whether to output reconstructed gene expression matrix(optional). If True, return imputed expression value and store it in adata.obsm['imputed'].
 
         Returns
         -------
@@ -97,9 +99,10 @@ def run_scgraphne(adata: sc.AnnData,
     if cell_type is not None:
         n_clusters = len(np.unique(cell_type))
 
-    adata, exp_value, enc_graph, exp_dec_graph_, unexp_edges, coexp_edges, uncoexp_edges = make_graph(adata, raw_exp, gene_similarity)
+    adata, exp_value, enc_graph, exp_dec_graph_, unexp_edges, coexp_edges, uncoexp_edges = make_graph(adata, raw_exp,
+                                                                                                      gene_similarity)
 
-    n_pos_edges, n_neg_edges = int(sample_rate*len(exp_value)), int(sample_rate*len(exp_value))
+    n_pos_edges, n_neg_edges = int(sample_rate * len(exp_value)), int(sample_rate * len(exp_value))
     n_neg_genes = len(coexp_edges[0]) if gene_similarity else None
     enc_graph, exp_value = enc_graph.to(device), torch.tensor(exp_value, device=device)
 
@@ -137,17 +140,15 @@ def run_scgraphne(adata: sc.AnnData,
 
     ### Save time by not performing clustering if time would be recorded during training.
     for iter_idx in range(iteration):
-        # if iter_idx % (log_interval * 5) == 0:
-        # if iter_idx % log_interval == 0:
-        # if verbose and (iter_idx + log_interval) % log_interval == 0:
-            # Sample un-expressed / un-co-expressed edges, construct negative graph
+        # Sample un-expressed / un-co-expressed edges, construct negative graph
         neg_edges = {}
 
         unexp_sample_index = np.random.choice(all_unexp_index, n_neg_edges)
         neg_edges[('cell', 'exp', 'gene')] = (unexp_edges[0][unexp_sample_index], unexp_edges[1][unexp_sample_index])
         if gene_similarity:
             uncoexp_sample_index = np.random.choice(all_uncoexp_index, n_neg_genes)
-            neg_edges[('gene', 'co-exp', 'gene')] = (uncoexp_edges[0][uncoexp_sample_index], uncoexp_edges[1][uncoexp_sample_index])
+            neg_edges[('gene', 'co-exp', 'gene')] = (
+            uncoexp_edges[0][uncoexp_sample_index], uncoexp_edges[1][uncoexp_sample_index])
 
         neg_graph = dgl.heterograph(neg_edges, num_nodes_dict={'cell': n_cells, 'gene': n_genes}).to(device)
         # Add cell/gene size factor to negative graph
@@ -162,7 +163,8 @@ def run_scgraphne(adata: sc.AnnData,
             exp_sample_index = np.random.choice(all_exp_index, n_pos_edges)
             pos_value = exp_value[exp_sample_index]
             exp_dec_edges = exp_dec_graph_[('cell', 'exp', 'gene')].edges()
-            pos_edges[('cell', 'exp', 'gene')] = (exp_dec_edges[0][exp_sample_index], exp_dec_edges[1][exp_sample_index])
+            pos_edges[('cell', 'exp', 'gene')] = (
+            exp_dec_edges[0][exp_sample_index], exp_dec_edges[1][exp_sample_index])
             if gene_similarity: pos_edges[('gene', 'co-exp', 'gene')] = coexp_edges
 
             pos_graph = dgl.heterograph(pos_edges, num_nodes_dict={'cell': n_cells, 'gene': n_genes}).to(device)
@@ -171,7 +173,6 @@ def run_scgraphne(adata: sc.AnnData,
             if decoder == 'ZINB':
                 pos_graph.nodes['cell'].data['cs_factor'] = exp_dec_graph_.nodes['cell'].data['cs_factor'].to(device)
                 pos_graph.nodes['gene'].data['gs_factor'] = exp_dec_graph_.nodes['gene'].data['gs_factor'].to(device)
-
 
         # Feed forward
         pos_pre, neg_pre = model(enc_graph, pos_graph, neg_graph)
@@ -189,12 +190,10 @@ def run_scgraphne(adata: sc.AnnData,
             loss_exp = criterion(pos_pre[0], pos_pre[1], pos_pre[2], pos_value)
             loss_unexp = criterion(neg_pre[0], neg_pre[1], neg_pre[2])
 
-            # ridge = torch.square(pos_pre[2]).mean() + torch.square(neg_pre[2]).mean()
-            # reg_loss = reg_loss + 10 * ridge
             ridge = torch.square(pos_pre[2]).mean() + torch.square(neg_pre[2]).mean()
             reg_loss = reg_loss + 1e-3 * ridge
 
-        loss = loss_exp + gamma * loss_unexp + 0.0001*reg_loss
+        loss = loss_exp + gamma * loss_unexp + 0.0001 * reg_loss
 
         # Calculate loss for (un)co-expressed gene
         if gene_similarity:
@@ -216,43 +215,41 @@ def run_scgraphne(adata: sc.AnnData,
         loss.backward()
         optimizer.step()
 
-
         if verbose and (iter_idx + 1) % log_interval == 0:
             print(
                 "[{}/{}-iter] | [train] exp loss : {:.4f}, unexp loss : {:.4f}"
                 .format(iter_idx + 1, iteration, count_loss_exp / log_interval, count_loss_unexp / log_interval) +
                 (", gene loss : {:.4f}, ungene loss : {:.4f}".
-                 format(count_loss_gene / log_interval, count_loss_unexp / log_interval)if gene_similarity else "")
-                )
+                 format(count_loss_gene / log_interval, count_loss_unexp / log_interval) if gene_similarity else "")
+            )
 
             count_loss_exp, count_loss_unexp, count_loss_gene, count_loss_ungene = 0, 0, 0, 0
 
-
-        if verbose and cell_type is not None and (iter_idx+1) % (log_interval * 5) == 0:
+        if verbose and cell_type is not None and (iter_idx + 1) % (log_interval * 5) == 0:
             model.eval()
             with torch.no_grad():
                 c_feat, g_feat, c_last, g_last = model.encode(enc_graph)
             model.train()
-            
+
             # Cell embeddings
             adata.obsm['e0'] = model.cell_feature.data.cpu().numpy()  # Return initial cell embedding
             adata.obsm['e2'] = c_last.cpu().numpy()  # Return the final layer of cell embedding
             adata.obsm['feat'] = c_feat.cpu().numpy()  # Return the weighted cell embeddings
-            
+
             # kmeans
-            adata = kmeans(adata, n_clusters, use_rep = use_rep)
+            adata = kmeans(adata, n_clusters, use_rep=use_rep)
             y_pred_k = np.array(adata.obs['kmeans'])
 
             # louvain
-            adata = louvain(adata, resolution = resolution,use_rep = use_rep)
+            adata = louvain(adata, resolution=resolution, use_rep=use_rep)
             y_pred_l = np.array(adata.obs['louvain'])
             print('Number of clusters identified by Louvain is {}'.format(len(np.unique(y_pred_l))))
 
             nmi_k, ari_k = calculate_metric(cell_type, y_pred_k)
-            print('Clustering Kmeans %d: NMI= %.4f, ARI= %.4f' % (iter_idx+1, nmi_k, ari_k))
+            print('Clustering Kmeans %d: NMI= %.4f, ARI= %.4f' % (iter_idx + 1, nmi_k, ari_k))
 
             nmi_l, ari_l = calculate_metric(cell_type, y_pred_l)
-            print('Clustering Louvain %d: NMI= %.4f, ARI= %.4f' % (iter_idx+1, nmi_l, ari_l))
+            print('Clustering Louvain %d: NMI= %.4f, ARI= %.4f' % (iter_idx + 1, nmi_l, ari_l))
 
             all_ari_k.append(ari_k)
             all_ari_l.append(ari_l)
@@ -262,20 +259,20 @@ def run_scgraphne(adata: sc.AnnData,
             if ari_k > best_ari_k:
                 best_ari_k = ari_k
                 best_nmi_k = nmi_k
-                best_iter_k = iter_idx+1
+                best_iter_k = iter_idx + 1
 
             if ari_l > best_ari_l:
                 best_ari_l = ari_l
                 best_nmi_l = nmi_l
-                best_iter_l = iter_idx+1
+                best_iter_l = iter_idx + 1
 
     ## End of training
     model.eval()
     with torch.no_grad():
         c_feat, g_feat, c_last, g_last = model.encode(enc_graph)
-    
+
     adata.obsm['e0'] = model.cell_feature.data.cpu().numpy()  # Return initial cell embedding
-    adata.obsm['e2'] = c_last.cpu().numpy()     # Return the final layer of cell embedding
+    adata.obsm['e2'] = c_last.cpu().numpy()  # Return the final layer of cell embedding
     adata.obsm['feat'] = c_feat.cpu().numpy()  # Return the weighted cell embeddings
     adata.varm['feat'] = g_last.cpu().numpy()  # Return the final layer's gene embeddings
 

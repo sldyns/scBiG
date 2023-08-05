@@ -1,7 +1,7 @@
 import numpy as np
-from sklearn import metrics
-from scipy.optimize import linear_sum_assignment
 import torch
+from scipy.optimize import linear_sum_assignment
+from sklearn import metrics
 from torch import nn
 
 
@@ -23,6 +23,7 @@ class ZINBLoss(nn.Module):
 
         return nb_case.mean()
 
+
 def cluster_acc(y_true, y_pred):
     """
     Calculate clustering accuracy. Require scikit-learn installed
@@ -42,7 +43,7 @@ def cluster_acc(y_true, y_pred):
     for i in range(y_pred.size):
         w[y_pred[i], y_true[i]] += 1
 
-    row_ind,col_ind = linear_sum_assignment(w.max() - w)
+    row_ind, col_ind = linear_sum_assignment(w.max() - w)
     return w[row_ind, col_ind].sum() * 1.0 / y_pred.size
 
 
@@ -51,4 +52,3 @@ def calculate_metric(pred, label):
     ari = np.round(metrics.adjusted_rand_score(label, pred), 5)
 
     return nmi, ari
-

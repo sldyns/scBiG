@@ -11,7 +11,7 @@ except Exception as e:
 
 setup(
     name="scgraphne",
-    version="0.1.0",
+    version="0.1.1",
     keywords=["single-cell RNA-sequencing", "Graph node embedding", "Dimensionality reduction"],
     description="scGraphNE: a novel scRNA-seq representation learning method based on graph node embedding",
     long_description=long_description,

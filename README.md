@@ -2,7 +2,7 @@
 
 ## Overview
 
-![alt](overview.svg)
+![alt](overview.png)
 
 scGraphNE is a graph autoencoder network where the encoder based on multi-layer graph convolutional networks extracts high-order representations of cells and genes from the cell-gene bipartite graph, and the decoder based on the ZINB model uses these representations to reconstruct the gene expression matrix. By virtue of a model-driven self-supervised training paradigm, scGraphNE can effectively learn low-dimensional representations of both cells and genes, amenable to diverse downstream analytical tasks.
 

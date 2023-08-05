@@ -1,19 +1,19 @@
-import torch
-from torch import nn
-
 import dgl
+import torch
 from dgl import function as fn
+from torch import nn
 from .decoder import DotDecoder, GMFDecoder, ZINBDecoder
 
-
 class LightGraphConv(nn.Module):
-    def __init__(self, drop_out = 0.1, gene2gene=False):
+    def __init__(self, drop_out=0.1, gene2gene=False):
         """Light Graph Convolution
 
         Paramters
         ---------
         drop_out : float
             dropout rate (neighborhood dropout)
+        gene2gene : boolean
+            whether to add gene massage to cell-gene bipartite graph
         """
         super().__init__()
         self.dropout = nn.Dropout(drop_out)
@@ -66,13 +66,12 @@ class LightGraphConv(nn.Module):
 
         return out
 
-class LightGCNLayer(nn.Module):
-    def __init__(self, drop_out = 0.1, alpha=None):
-        super().__init__()
-        """LightGCN Layer
 
-        edge_types : list
-            all edge types
+class lightgraphconvlayer(nn.Module):
+    def __init__(self, drop_out=0.1, alpha=None):
+        super().__init__()
+        """lightgraphconv layer
+
         drop_out : float
             dropout rate (feature dropout)
         alpha: float
@@ -84,7 +83,6 @@ class LightGCNLayer(nn.Module):
         cell_to_gene_key = 'exp'
         gene_to_cell_key = 'reverse-exp'
         gene_to_gene_key = 'co-exp'
-
 
         # convolution on cell -> gene graph
         conv[cell_to_gene_key] = LightGraphConv(drop_out=drop_out)
@@ -99,7 +97,7 @@ class LightGCNLayer(nn.Module):
         self.conv = dgl.nn.HeteroGraphConv(conv, aggregate='stack')
         self.feature_dropout = nn.Dropout(drop_out)
 
-    def forward(self, graph, c_feat, g_feat, ckey = 'cell', gkey = 'gene'):
+    def forward(self, graph, c_feat, g_feat, ckey='cell', gkey='gene'):
         """
         Paramters
         ---------
@@ -128,9 +126,11 @@ class LightGCNLayer(nn.Module):
 
         out = self.conv(graph, feats)
         c_feat = out[ckey].squeeze()
-        g_feat = self.alpha * out[gkey][:,0] + (1 - self.alpha) * out[gkey][:,1] if self.alpha is not None else out[gkey].squeeze()
+        g_feat = self.alpha * out[gkey][:, 0] + (1 - self.alpha) * out[gkey][:, 1] if self.alpha is not None else out[
+            gkey].squeeze()
 
         return c_feat, g_feat
+
 
 class scGraphNE(nn.Module):
     def __init__(self,
@@ -139,23 +139,32 @@ class scGraphNE(nn.Module):
                  n_genes,
                  drop_out,
                  feats_dim,
-                 decoder = 'Dot',
-                 learnable_weight = False,
-                 gene_similarity = False,
+                 decoder='ZINB',
+                 learnable_weight=False,
+                 gene_similarity=False,
                  alpha=0.9):
         super().__init__()
-        """LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation
-        paper : https://arxiv.org/pdf/2002.02126.pdf
+        """scGraphNE: a novel scRNA-seq representation learning method based on graph node embedding
 
         n_layers : int
-            number of GCMC layers
-        edge_types : list
-            all edge types
+            number of GCN layers
+        n_cells : int
+            number of cells
+        n_genes : int
+            number of genes   
         drop_out : float
             dropout rate (neighbors)
+        feats_dim : int
+            node feature dimension
+        decoder = 'ZINB'
+            structure of decoder. default is 'ZINB', optionally input 'Dot', 'GMF' or 'ZINB'
         learnable_weight : boolean
-            whether to learn weights for embedding aggregation
-            if False, use 1/n_layers
+            whether to learn weights for embedding aggregation, if False, use 1/n_layers
+        gene_similarity : boolean
+           whether to consider gene massage
+        alpha: float
+            weight for gene massage
+        
         """
         self.gene_similarity = gene_similarity
         self.alpha = alpha if gene_similarity else None
@@ -172,12 +181,12 @@ class scGraphNE(nn.Module):
         self.n_layers = n_layers
         self.encoders = nn.ModuleList()
         for _ in range(n_layers):
-            self.encoders.append(LightGCNLayer(drop_out=drop_out, alpha=self.alpha))
+            self.encoders.append(lightgraphconvlayer(drop_out=drop_out, alpha=self.alpha))
 
         if self.n_layers == 2:
             self.weights = torch.tensor([1., 1. / 2, 1. / 2])
         else:
-            self.weights = torch.ones([self.n_layers+1, 1]) / (self.n_layers+1)
+            self.weights = torch.ones([self.n_layers + 1, 1]) / (self.n_layers + 1)
 
         if learnable_weight:
             self.weights = nn.Parameter(self.weights)
@@ -202,7 +211,7 @@ class scGraphNE(nn.Module):
             c_feat, g_feat = encoder(graph, c_feat, g_feat, ckey, gkey)
             c_hidden = c_hidden + w * c_feat
             g_hidden = g_hidden + w * g_feat
-        
+
         return c_hidden, g_hidden, c_feat, g_feat
 
     def decode(self, pos_graph, neg_graph, c_feat, g_feat, g_last, ckey, gkey):
@@ -213,29 +222,22 @@ class scGraphNE(nn.Module):
     def forward(self,
                 enc_graph,
                 pos_graph,
-                neg_graph = None,
-                ckey = 'cell',
-                gkey = 'gene'):
+                neg_graph=None,
+                ckey='cell',
+                gkey='gene'):
         """
         Parameters
         ----------
-        enc_graph : dgl.graph
-        dec_graph : dgl.homograph
+        enc_graph, pos_graph, neg_graph: dgl.graph
+            constructed graphs
 
-        Notes
-        -----
-        1. LightGCN encoder
-            1 ) message passing
-                MP_{j -> i, r} = h_{j} / ( N_{i, r} * N_{j, r} )
-            2 ) aggregation
-                \sum_{j \in N(i), r} MP_{j -> i, r}
+        ckey, gkey : str
+            target node types
 
-        2. final features
-            cell_{i} = mean( h_{i, layerself.cell_feature = {Parameter: (943, 75)} Parameter containing:\ntensor([[ 0.0007, -0.0501,  0.0644,  ..., -0.0756,  0.0526, -0.0293],\n        [ 0.0743, -0.0693, -0.0382,  ..., -0.0612,  0.0300,  0.0068],\n        [-0.0341, -0.0038,  0.0670,  ..., -0.0470, -0.0631, -0.0403],\n        ...,\n        [-0… View_1}, h_{i, layer_2}, ... )
-            gene_{j} = mean( h_{j, layer_1}, h_{j, layer_2}, ... )
-
-        3. Bilinear decoder
-            logits_{i, j, r} = c_feat_{i} @ Q_r @ g_feat_{j}
+        Returns
+        -------
+        pos_pre, neg_pre : torch.FloatTensor
+            edge predictions of positive and negative graph in the decoder
         """
 
         c_feat, g_feat, c_last, g_last = self.encode(enc_graph, ckey, gkey)

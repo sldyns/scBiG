@@ -1,9 +1,11 @@
-import scanpy as sc
+import dgl
 import numpy as np
 import pandas as pd
-import dgl
+import scanpy as sc
 import torch
+
 from .graph import construct_gene_graph, add_degree
+
 
 def preprocess(adata, filter_min_counts=True, size_factors=True, normalize_input=False, logtrans_input=True):
     if size_factors or normalize_input or logtrans_input:
@@ -32,6 +34,7 @@ def preprocess(adata, filter_min_counts=True, size_factors=True, normalize_input
 
     return adata
 
+
 def make_graph(adata, raw_exp=False, gene_similarity=False):
     X = adata.X
     num_cells, num_genes = X.shape
@@ -51,13 +54,13 @@ def make_graph(adata, raw_exp=False, gene_similarity=False):
     if gene_similarity:
         coexp_edges, uncoexp_edges = construct_gene_graph(X)
         exp_edge_dict[('gene', 'co-exp', 'gene')] = coexp_edges
-    
+
     # expression encoder/decoder graph
     enc_graph = dgl.heterograph(exp_edge_dict, num_nodes_dict=num_nodes_dict)
 
     exp_edge_dict.pop(('gene', 'reverse-exp', 'cell'))
     dec_graph = dgl.heterograph(exp_edge_dict, num_nodes_dict=num_nodes_dict)
-    
+
     # add degree to cell/gene nodes
     add_degree(enc_graph, ['exp'] + (['co-exp'] if gene_similarity else []))
 
@@ -65,7 +68,7 @@ def make_graph(adata, raw_exp=False, gene_similarity=False):
     if raw_exp:
         Raw = pd.DataFrame(adata.raw.X, index=list(adata.raw.obs_names), columns=list(adata.raw.var_names))
         X = Raw[list(adata.var_names)].values
-        exp_value = X[exp_train_cell, exp_train_gene].reshape(-1,1)
+        exp_value = X[exp_train_cell, exp_train_gene].reshape(-1, 1)
         dec_graph.nodes['cell'].data['cs_factor'] = torch.Tensor(adata.obs['cs_factor']).reshape(-1, 1)
         dec_graph.nodes['gene'].data['gs_factor'] = torch.Tensor(adata.var['gs_factor']).reshape(-1, 1)
 

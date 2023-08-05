@@ -1,6 +1,7 @@
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
 import torch
+from sklearn.metrics.pairwise import cosine_similarity
+
 
 def construct_gene_graph(gex_features, corr_method='cosine', corr_threshold=0.8):
     """Generate nodes, edges and edge weights for dataset.
@@ -51,6 +52,3 @@ def add_degree(graph, edge_types):
     if 'co-exp' in edge_types:
         gene_cii, gene_cjj = _calc_norm(graph['co-exp'].in_degrees()), _calc_norm(graph['co-exp'].out_degrees())
         graph.nodes['gene'].data.update({'cii': gene_cii, 'cjj': gene_cjj})
-
-
-
