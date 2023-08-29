@@ -1,7 +1,7 @@
-from tensorflow.keras import activations, constraints, initializers, regularizers
 import tensorflow as tf
-from tensorflow.keras.layers import Layer, InputSpec
 import tensorflow.keras.backend as K
+from tensorflow.keras import activations, constraints, initializers, regularizers
+from tensorflow.keras.layers import Layer, InputSpec
 
 
 class ClusteringLayer(Layer):

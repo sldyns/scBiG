@@ -1,10 +1,11 @@
 import numpy as np
-import pandas as pd
-from scipy import sparse as sp
-from sklearn.neighbors import kneighbors_graph
-from utils import dopca
 import scanpy as sc
 from anndata import AnnData
+from scipy import sparse as sp
+from sklearn.neighbors import kneighbors_graph
+
+from utils import dopca
+
 
 def get_adj(count, k=160, pca=30, mode="connectivity"):
     if pca:
@@ -33,8 +34,7 @@ def norm_adj(A):
     return output
 
 
-def normalize(X, filter_min=True, norm_cell=True, log=True, top_genes = 2500, scale=True):
-
+def normalize(X, filter_min=True, norm_cell=True, log=True, top_genes=2500, scale=True):
     adata = AnnData(X=X)
 
     if filter_min:

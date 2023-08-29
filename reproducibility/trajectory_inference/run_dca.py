@@ -1,18 +1,22 @@
+import os
+import random
+
+import h5py
 import numpy as np
 import scanpy as sc
-from dca.api import dca
-import h5py
-from scgraphne.utils import louvain,calculate_metric
-import os
 import tensorflow as tf
-import random
+from dca.api import dca
+
+from scbig.utils import louvain, calculate_metric
+
+
 def seed(SEED):
-    os.environ['PYTHONHASHSEED']=str(SEED)
+    os.environ['PYTHONHASHSEED'] = str(SEED)
     random.seed(SEED)
     np.random.seed(SEED)
     tf.random.set_seed(SEED)
 
-for dataset in ['DPT', 'YAN', 'Deng', 'Buettner']:
+for dataset in ['DPT', 'YAN', 'Deng']:
     print('----------------real data: {} ----------------- '.format(dataset))
     seed(0)
     method = 'DCA'
@@ -25,13 +29,13 @@ for dataset in ['DPT', 'YAN', 'Deng', 'Buettner']:
         X = np.ceil(X).astype(np.int_)
         Y = np.array(Y).astype(np.int_).squeeze()
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     sc.pp.filter_genes(adata, min_cells=1)
     print("Sparsity: ", np.where(adata.X == 0)[0].shape[0] / (adata.X.shape[0] * adata.X.shape[1]))
     adata.obs['cl_type'] = Y
     n_clusters = len(np.unique(Y))
 
-    dca(adata, mode='latent',ae_type='zinb',threads=1)
+    dca(adata, mode='latent', ae_type='zinb', threads=1)
     print(adata)
     adata1 = adata
     dca(adata1, mode='denoise', ae_type='zinb')

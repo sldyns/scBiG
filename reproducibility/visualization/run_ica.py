@@ -1,11 +1,14 @@
-from ica import ica1
-import numpy as np
-import h5py
-import scanpy as sc
 import os
-from scgraphne.utils import read_data,setup_seed,louvain,calculate_metric
 
-def preprocess(adata,scale=True):
+import h5py
+import numpy as np
+import scanpy as sc
+from ica import ica1
+
+from scbig.utils import read_data, setup_seed, louvain, calculate_metric
+
+
+def preprocess(adata, scale=True):
     sc.pp.filter_genes(adata, min_cells=3)
     sc.pp.filter_cells(adata, min_genes=200)
     sc.pp.normalize_total(adata, target_sum=1e4)
@@ -38,7 +41,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             X = np.ceil(X).astype(np.int_)
             Y = np.array(Y).astype(np.int_).squeeze()
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     adata = preprocess(adata)
     adata.obs['cl_type'] = Y
     n_clusters = len(np.unique(Y))
@@ -47,7 +50,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
     adata.obsm['feat'] = A
 
     # louvain
-    adata = louvain(adata, resolution=1,use_rep='feat')
+    adata = louvain(adata, resolution=1, use_rep='feat')
     y_pred = np.array(adata.obs['louvain'])
     nmi_l, ari_l = calculate_metric(Y, y_pred)
     print('Clustering Louvain: NMI= %.4f, ARI= %.4f' % (nmi_l, ari_l))

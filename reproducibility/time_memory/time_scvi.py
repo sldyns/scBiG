@@ -1,11 +1,14 @@
-import numpy as np
-import h5py
-import scanpy as sc
-import scvi
-from scgraphne.utils import setup_seed
 import os
 import time
+
+import h5py
+import numpy as np
+import scanpy as sc
+import scvi
 from memory_profiler import profile
+
+from scbig.utils import setup_seed
+
 
 @profile
 def run_scvi(adata):
@@ -16,10 +19,12 @@ def run_scvi(adata):
     adata.obsm["X_scVI"] = latent
     adata.layers["scvi_normalized"] = model.get_normalized_expression(
         library_size=10e4)
+    from memory_profiler import memory_usage
+    mem_used = memory_usage(-1, interval=.1, timeout=1)
+    print(max(mem_used))
+    return adata, max(mem_used)
 
-    return adata
-
-for dataset in ['2000','4000','8000','16000','32000','64000']:
+for dataset in ['2000', '4000', '8000', '16000', '32000', '64000']:
     print('----------------real data: {} ----------------- '.format(dataset))
     setup_seed(0)
     method = 'scVI'
@@ -32,8 +37,7 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
         X = np.ceil(X).astype(np.int_)
         Y = np.array(Y).astype(np.int_).squeeze()
 
-
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     adata.obs['cl_type'] = Y
     n_clusters = len(np.unique(Y))
     print(adata)
@@ -48,10 +52,10 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
 
     start_time = time.time()
     # train
-    adata= run_scvi(adata)
+    adata, memory_usage = run_scvi(adata)
     end_time = time.time()
     total_time = end_time - start_time
     print("Run Done. Total Running Time: %s seconds" % (total_time))
 
     np.savez(os.path.join(dir0, "results/time_memory/{}/record_cell{}_{}.npz".format(dataset, dataset, method)),
-             time=total_time)
+             time=total_time, memory_usage=memory_usage)

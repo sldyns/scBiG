@@ -1,11 +1,14 @@
-from ica import ica1
-import numpy as np
-import h5py
-import scanpy as sc
-from scgraphne.utils import read_data,setup_seed,sample,louvain,calculate_metric
 import os
 
-def preprocess(adata,scale=True):
+import h5py
+import numpy as np
+import scanpy as sc
+from ica import ica1
+
+from scbig.utils import read_data, setup_seed, sample, louvain, calculate_metric
+
+
+def preprocess(adata, scale=True):
     sc.pp.filter_genes(adata, min_cells=3)
     sc.pp.filter_cells(adata, min_genes=200)
     sc.pp.normalize_total(adata, target_sum=1e4)
@@ -16,7 +19,9 @@ def preprocess(adata,scale=True):
         print('no scale!')
     return adata
 
-for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_counts','Adam','Human_pancreatic_islets','Macosko_mouse_retina']:
+
+for dataset in ['10X_PBMC', 'mouse_bladder_cell', 'mouse_ES_cell', 'human_kidney_counts', 'Adam',
+                'Human_pancreatic_islets', 'Macosko_mouse_retina']:
     print('----------------real data: {} ----------------- '.format(dataset))
     setup_seed(0)
     method = 'ICA'
@@ -45,11 +50,11 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
         ##sample
         seed = 10 * t
         X, Y = sample(X0, Y0, seed)
-        adata = sc.AnnData(X)
+        adata = sc.AnnData(X.astype('float'))
         adata = preprocess(adata)
         adata.obs['cl_type'] = Y
         n_clusters = len(np.unique(Y))
-        #FastICA
+        # FastICA
         A, S, W = ica1(adata.X, ncomp=64)
 
         adata.obsm['feat'] = A

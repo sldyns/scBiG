@@ -1,10 +1,14 @@
+import warnings
+
 import numpy as np
 import scanpy as sc
 import tensorflow as tf
-import warnings
+import sys
+sys.path.append('../pkgs/scGAE/')
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-#scGAE modules
+# scGAE modules
 from scgae import SCGAE
 from preprocessing import *
 from utils import *
@@ -16,13 +20,15 @@ import random
 import time
 from memory_profiler import profile
 
+
 def seed(SEED):
-    os.environ['PYTHONHASHSEED']=str(SEED)
+    os.environ['PYTHONHASHSEED'] = str(SEED)
     random.seed(SEED)
     np.random.seed(SEED)
     tf.random.set_seed(SEED)
 
-def preprocess(adata,scale=True):
+
+def preprocess(adata, scale=True):
     sc.pp.filter_genes(adata, min_cells=3)
     sc.pp.filter_cells(adata, min_genes=200)
     sc.pp.normalize_total(adata, target_sum=1e4)
@@ -57,10 +63,14 @@ def run_scgae(adata):
     Y2c = doumap(Yc, dim=2)
     adata.obsm['feat'] = Yc
 
-    return adata,Y2c
+    from memory_profiler import memory_usage
+    mem_used = memory_usage(-1, interval=.1, timeout=1)
+    print(max(mem_used))
+
+    return adata, Y2c, max(mem_used)
 
 
-for dataset in ['2000','4000','8000','16000','32000','64000']:
+for dataset in ['2000', '4000', '8000', '16000', '32000', '64000']:
     print('----------------real data: {} ----------------- '.format(dataset))
     seed(0)
     method = 'scGAE'
@@ -74,18 +84,16 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
         Y = np.array(Y).astype(np.int_).squeeze()
 
     idents = Y
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     adata = preprocess(adata)
     count = adata.X
     start_time = time.time()
     # train
-    adata,Y2c = run_scgae(adata)
+    adata, Y2c, memory_usage = run_scgae(adata)
     end_time = time.time()
     total_time = end_time - start_time
     print("Run Done. Total Running Time: %s seconds" % (total_time))
 
     np.savez(os.path.join(dir0, "results/time_memory/{}/record_cell{}_{}.npz".format(dataset, dataset, method)),
-             time=total_time)
-
-
+             time=total_time, memory_usage=memory_usage)
 

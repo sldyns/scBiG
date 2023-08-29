@@ -1,4 +1,6 @@
 import argparse
+
+from networkx.generators import community
 from scipy.spatial import distance_matrix, minkowski_distance, distance
 import scipy.sparse
 import sys
@@ -6,7 +8,10 @@ import pickle
 import csv
 import networkx as nx
 import numpy as np
+import pandas as pd
 import time
+
+from sklearn.manifold import TSNE
 from sklearn.metrics import precision_recall_curve
 import matplotlib.pyplot as plt
 from inspect import signature
@@ -15,16 +20,13 @@ from scipy import stats
 import pandas as pd
 import matplotlib.cm as cm
 from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import seaborn as sns
 import umap
 from sklearn.cluster import KMeans, SpectralClustering, AffinityPropagation, AgglomerativeClustering, Birch, DBSCAN, FeatureAgglomeration, MeanShift, OPTICS
 from clustering_metric import clustering_metrics
 from sklearn.metrics import *
 from sklearn.metrics.cluster import *
 from sklearn.metrics.pairwise import cosine_similarity
+import seaborn as sns
 from graph_function import *
 from util_function import *
 
@@ -54,10 +56,10 @@ def drawUMAP(z, listResult, size, saveDir, dataset, saveFlag=True):
                 c=listResult, cmap='Spectral', s=5)
     plt.gca().set_aspect('equal', 'datalim')
     plt.colorbar(boundaries=np.arange(int(size)) -
-                 0.5).set_ticks(np.arange(int(size)))
+                            0.5).set_ticks(np.arange(int(size)))
     plt.title('UMAP projection', fontsize=24)
     if saveFlag:
-        plt.savefig(saveDir+dataset.split('/')[-1]+'_UMAP.jpeg', dpi=300)
+        plt.savefig(saveDir + dataset.split('/')[-1] + '_UMAP.jpeg', dpi=300)
 
 
 def drawSPRING(edgeList, listResult, saveDir, dataset, saveFlag=True):
@@ -83,7 +85,7 @@ def drawSPRING(edgeList, listResult, saveDir, dataset, saveFlag=True):
     nx.draw_networkx_edges(G, pos, alpha=0.5)
     # plt.show()
     if saveFlag:
-        plt.savefig(saveDir+dataset.split('/')[-1]+'_SPRING.jpeg', dpi=300)
+        plt.savefig(saveDir + dataset.split('/')[-1] + '_SPRING.jpeg', dpi=300)
 
 
 # T-SNE
@@ -92,7 +94,7 @@ def drawTSNE(z, listResult, saveDir, dataset, saveFlag=True):
     time_start = time.time()
     tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
     tsne_results = tsne.fit_transform(z)
-    print('t-SNE done! Time elapsed: {} seconds'.format(time.time()-time_start))
+    print('t-SNE done! Time elapsed: {} seconds'.format(time.time() - time_start))
 
     df_subset = pd.DataFrame()
     df_subset['tsne-2d-one'] = tsne_results[:, 0]
@@ -109,7 +111,7 @@ def drawTSNE(z, listResult, saveDir, dataset, saveFlag=True):
         # alpha=0.3
     )
     if saveFlag:
-        plt.savefig(saveDir+dataset.split('/')[-1]+'_TSNE.jpeg', dpi=300)
+        plt.savefig(saveDir + dataset.split('/')[-1] + '_TSNE.jpeg', dpi=300)
 
 
 def drawFractPlot(exFile, geneFile, markerGeneList, listResult, saveDir, dataset, saveFlag=True):
@@ -135,7 +137,7 @@ def drawFractPlot(exFile, geneFile, markerGeneList, listResult, saveDir, dataset
         if markerGene in geneDict:
             markerGeneIndexList.append(geneDict[markerGene])
         else:
-            print('Cannot find '+markerGene+' in gene.txt')
+            print('Cannot find ' + markerGene + ' in gene.txt')
 
     # dim: [4394, 20]
     useData = expressionData[:, markerGeneIndexList]
@@ -156,7 +158,7 @@ def drawFractPlot(exFile, geneFile, markerGeneList, listResult, saveDir, dataset
 
     clusterNum = np.asarray(clusterNum).reshape(len(set(listResult)), 1)
 
-    resultTableUsage = resultTable/clusterNum
+    resultTableUsage = resultTable / clusterNum
 
     clusterSortDict = {}
     clusterSortList = []
@@ -172,8 +174,8 @@ def drawFractPlot(exFile, geneFile, markerGeneList, listResult, saveDir, dataset
         data=resultTableUsage[clusterSortList, :], index=clusterSortList, columns=markerGeneList)
     ax = sns.heatmap(df, cmap="YlGnBu")
     if saveFlag:
-        plt.savefig(saveDir+dataset.split('/')
-                    [-1]+'_MarkerGenes.jpeg', dpi=300)
+        plt.savefig(saveDir + dataset.split('/')
+        [-1] + '_MarkerGenes.jpeg', dpi=300)
     # np.save('resultTable.npy',resultTable)
     # np.save('resultTableUsage.npy',resultTableUsage)
 
@@ -235,6 +237,7 @@ def measureClusteringTrueLabel(labels_true, labels_pred):
     hs = homogeneity_score(labels_true, labels_pred)
     return ari, ami, nmi, cs, fms, vms, hs
 
+
 # labelFilename:     /home/wangjue/biodata/scData/AnjunBenchmark/5.Pollen/Pollen_cell_label.csv
 # cellFilename:      /home/wangjue/biodata/scData/5.Pollen.cellname.txt
 # cellIndexFilename: /home/wangjue/myprojects/scGNN/data/sc/5.Pollen/ind.5.Pollen.cellindex.txt
@@ -252,7 +255,7 @@ def readTrueLabelListPartCell(labelFilename, cellFilename, cellIndexFilename):
             if count >= 0:
                 line = line.strip()
                 words = line.split(',')
-                cellDict[words[0]] = int(words[1])-1
+                cellDict[words[0]] = int(words[1]) - 1
             count += 1
         f.close()
 
@@ -284,6 +287,7 @@ def readTrueLabelListPartCell(labelFilename, cellFilename, cellIndexFilename):
 
     return labelList
 
+
 # labelFilename:     /home/wangjue/biodata/scData/AnjunBenchmark/5.Pollen/Pollen_cell_label.csv
 
 
@@ -299,11 +303,12 @@ def readTrueLabelList(labelFilename):
             if count >= 0:
                 line = line.strip()
                 words = line.split(',')
-                labelList.append(int(words[1])-1)
+                labelList.append(int(words[1]) - 1)
             count += 1
         f.close()
 
     return labelList
+
 
 # Benchmark
 
@@ -318,6 +323,7 @@ def measure_clustering_benchmark_results(z, listResult, true_labels):
     print('{:.4f} {:.4f} {:.4f} {:.4f} {:.4f} {:.4f} {:.4f} {:.4f} {:.4f} {:.4f}'.format(
         silhouette, chs, dbs, ari, ami, nmi, cs, fms, vms, hs))
 
+
 # Benchmark
 
 
@@ -327,6 +333,7 @@ def measure_clustering_results(z, listResult):
     '''
     silhouette, chs, dbs = measureClusteringNoLabel(z, listResult)
     print('{:.4f} {:.4f} {:.4f}'.format(silhouette, chs, dbs))
+
 
 # Benchmark
 
@@ -502,6 +509,7 @@ def test_clustering_results(z, edgeList, args):
     except:
         pass
 
+
 # Revised freom Original version in scVI
 # Ref:
 # https://github.com/romain-lopez/scVI-reproducibility/blob/master/demo_code/benchmarking.py
@@ -536,9 +544,10 @@ def impute_dropout(X, seed=1, rate=0.1):
     X_zero[i[ix], j[ix]] = 0.0
 
     # choice number 2, focus on a few but corrupt binomially
-    #ix = np.random.choice(range(len(i)), int(slice_prop * np.floor(len(i))), replace=False)
-    #X_zero[i[ix], j[ix]] = np.random.binomial(X_zero[i[ix], j[ix]].astype(np.int), rate)
+    # ix = np.random.choice(range(len(i)), int(slice_prop * np.floor(len(i))), replace=False)
+    # X_zero[i[ix], j[ix]] = np.random.binomial(X_zero[i[ix], j[ix]].astype(np.int), rate)
     return X_zero, i, j, ix
+
 
 # IMPUTATION METRICS
 # Revised freom Original version in scVI
@@ -593,7 +602,7 @@ def imputation_error_log(X_mean, X, X_zero, i, j, ix):
     if isinstance(X, np.ndarray):
         all_index = i[ix], j[ix]
         x, y = X_mean[all_index], X[all_index]
-        result = np.abs(x - np.log(y+1))
+        result = np.abs(x - np.log(y + 1))
     # If the input is a sparse matrix
     else:
         all_index = i[ix], j[ix]
@@ -601,9 +610,10 @@ def imputation_error_log(X_mean, X, X_zero, i, j, ix):
         y = X[all_index[0], all_index[1]]
         yuse = scipy.sparse.lil_matrix.todense(y)
         yuse = np.asarray(yuse).reshape(-1)
-        result = np.abs(x - np.log(yuse+1))
+        result = np.abs(x - np.log(yuse + 1))
     # return np.median(np.abs(x - yuse))
     return np.mean(result), np.median(result), np.min(result), np.max(result)
+
 
 # cosine similarity
 
@@ -625,7 +635,7 @@ def imputation_cosine_log(X_mean, X, X_zero, i, j, ix):
         x, y = X_mean[all_index], X[all_index]
         x = x.reshape(1, -1)
         y = y.reshape(1, -1)
-        result = cosine_similarity(x, np.log(y+1))
+        result = cosine_similarity(x, np.log(y + 1))
     # If the input is a sparse matrix
     else:
         all_index = i[ix], j[ix]
@@ -635,9 +645,10 @@ def imputation_cosine_log(X_mean, X, X_zero, i, j, ix):
         yuse = np.asarray(yuse).reshape(-1)
         x = x.reshape(1, -1)
         yuse = yuse.reshape(1, -1)
-        result = cosine_similarity(x, np.log(yuse+1))
+        result = cosine_similarity(x, np.log(yuse + 1))
     # return np.median(np.abs(x - yuse))
     return result[0][0]
+
 
 # cosine similarity
 

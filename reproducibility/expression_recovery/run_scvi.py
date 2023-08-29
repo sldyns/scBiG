@@ -1,15 +1,17 @@
+import os
+from math import sqrt
+
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
 import scanpy as sc
 import scvi
-from scgraphne import setup_seed
-from sklearn.metrics import mean_squared_error
-from math import sqrt
 from scipy.stats import pearsonr
-import os
+from sklearn.metrics import mean_squared_error
 
-for sparity in ['0.8','0.85','0.9','0.95']:
+from scbig import setup_seed
+
+for sparity in ['0.8', '0.85', '0.9', '0.95']:
     print('----------------sparity level of data: {} ----------------- '.format(sparity))
     setup_seed(0)
     method = 'scVI'
@@ -25,14 +27,14 @@ for sparity in ['0.8','0.85','0.9','0.95']:
         Xt = np.ceil(Xt).astype(np.int_)
         Y = np.array(Y).astype(np.int_)
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     adata.obs['cl_type'] = Y
     n_clusters = len(np.unique(Y))
     print(adata)
 
     sc.pp.filter_genes(adata, min_counts=3)
     adata.layers["counts"] = adata.X.copy()
-    ff = np.sum(adata.X, axis=1) /1e4
+    ff = np.sum(adata.X, axis=1) / 1e4
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
     adata.raw = adata
@@ -62,7 +64,7 @@ for sparity in ['0.8','0.85','0.9','0.95']:
     print(adata)
 
     YPred = adata.layers["scvi_normalized"]
-    Pred = np.dot(np.diag(ff),YPred)
+    Pred = np.dot(np.diag(ff), YPred)
     X_Impute = np.array(Pred).reshape(-1)
     X_true = np.array(data.values).reshape(-1)
 
@@ -79,10 +81,7 @@ for sparity in ['0.8','0.85','0.9','0.95']:
              rmsed=rmse_false, pccd=pcc_false,
              rmse=rmse, pcc=pcc)
 
-
     print(rmse_false)
     print(pcc_false)
     print(rmse)
     print(pcc)
-
-

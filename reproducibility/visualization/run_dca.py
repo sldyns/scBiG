@@ -1,9 +1,11 @@
+import os
+
+import h5py
 import numpy as np
 import scanpy as sc
 from dca.api import dca
-import h5py
-from scgraphne.utils import read_data,setup_seed,louvain,calculate_metric
-import os
+
+from scbig.utils import read_data, setup_seed, louvain, calculate_metric
 
 for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_counts','Adam','Human_pancreatic_islets','Macosko_mouse_retina']:
     print('----------------real data: {} ----------------- '.format(dataset))
@@ -27,7 +29,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             X = np.ceil(X).astype(np.int_)
             Y = np.array(Y).astype(np.int_).squeeze()
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     print(adata)
     sc.pp.filter_genes(adata, min_cells=1)
     print("Sparsity: ", np.where(adata.X == 0)[0].shape[0] / (adata.X.shape[0] * adata.X.shape[1]))
@@ -35,10 +37,10 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
     n_clusters = len(np.unique(Y))
     print(adata)
 
-    dca(adata, mode='latent',ae_type='zinb',threads=1)
+    dca(adata, mode='latent', ae_type='zinb', threads=1)
 
     # louvain
-    adata = louvain(adata, resolution=1,use_rep='X_dca')
+    adata = louvain(adata, resolution=1, use_rep='X_dca')
     y_pred_l = np.array(adata.obs['louvain'])
     n_pred = len(np.unique(y_pred_l))
     nmi_l, ari_l = np.round(calculate_metric(Y, y_pred_l), 4)
@@ -47,7 +49,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
     sc.tl.umap(adata)
     print(adata)
 
-    np.savez(os.path.join(dir0,"results/visualization/{}/record_{}_{}.npz".format(dataset,dataset,method)),
+    np.savez(os.path.join(dir0, "results/visualization/{}/record_{}_{}.npz".format(dataset, dataset, method)),
              ari=ari_l, nmi=nmi_l,
              umap=adata.obsm['X_umap'],
              true=np.array(adata.obs['cl_type'].values.astype(int)),

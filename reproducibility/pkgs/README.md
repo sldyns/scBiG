@@ -5,6 +5,7 @@
 - ICA: 0.5
 - DCA: 0.3.4
 - scVI: 0.17.3
+- SIMBA: 1.1
 - MAGIC: 3.0.0
 - scImpute: 0.0.9
 
@@ -12,9 +13,9 @@
 
 ZIFA is cloned from https://github.com/epierson9/ZIFA.git
 
-#### VASC
+#### graph-sc
 
-VASC is cloned from https://github.com/wang-research/VASC.git
+graph-sc is cloned from https://github.com/ciortanmadalina/graph-sc.git
 
 #### scGAE
 
@@ -36,36 +37,11 @@ ALRA is cloned from https://github.com/KlugerLab/ALRA.git
 
 In this task, we used comparison methods such as MAGIC, scImpute, ALRA, DCA, scVI.
 
-### Cell clustering , visualization,time and memory
+### Cell clustering, visualization, cell trajectory inference, time and memory
 
-In this task, we used comparison methods such as Seurat, PCA, ICA,  ZIFA, VASC, scGAE, scGNN,DCA, scVI.
+In this task, we used comparison methods such as Seurat, ICA,  ZIFA, graph-sc, scGAE, scGNN,DCA, scVI, and SIMBA.
 
-### Cell trajectory inference
-
-In this task, we used comparison methods such as PCA, ICA,  ZIFA, VASC, scGAE, scGNN,DCA, scVI. To ensure fairness, we use all methods to reduce dimensionality to obtain the cell embedding of dimension 64.
-
-For VASC, it provided file ` config.py` for parameter assignment and default setting for ` latent` is 2. In cell trajectory inference task, we changed  parameter ` latent` to 64:
-
-```python
-res = vasc( expr, 
-           epoch=300,
-           var=False,
-           latent=64, #latent=config['latent']
-           annealing=False,
-           batch_size=batch_size,
-           prefix=PREFIX,
-           label=label,
-           scale=config['scale'],
-           patience=config['patience'])
-```
-
-For scGAE，the model parameter ` latent_dim` is 15. In cell trajectory inference task, we changed this parameter to 64:
-
-```python
-model = SCGAE(count, adj, adj_n, hidden_dim = 120, latent_dim = 64, decA = "DBL", layer_enc = "GAT")
-```
-
-Before training scGAE model, we first create  k-nearest neighbor graph. The default number of neighbors for each sample ` k` is 160, considering that a small dataset YAN was used in cell trajectory inference task, we changed the parameter ` k` to 80:
+For scGAE，before training scGAE model, we first create  k-nearest neighbor graph. The default number of neighbors for each sample ` k` is 160, considering that a small dataset YAN was used in cell trajectory inference task, we changed the parameter ` k` to 80:
 
 ```python
 adj, adj_n = get_adj(count, k = 80)

@@ -1,11 +1,12 @@
-from sklearn import metrics
-from munkres import Munkres
-import numpy as np
-from sklearn.manifold import TSNE
 import matplotlib
+import numpy as np
+from munkres import Munkres
+from sklearn import metrics
+from sklearn.manifold import TSNE
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
 
 # Tmp
 # Ref: https://github.com/MysteryVaibhav/RWR-GAE
@@ -65,7 +66,7 @@ class clustering_metrics:
 
         tqdm.write(
             'ACC=%f, f1_macro=%f, precision_macro=%f, recall_macro=%f, f1_micro=%f, precision_micro=%f, recall_micro=%f, NMI=%f, ADJ_RAND_SCORE=%f' % (
-            acc, f1_macro, precision_macro, recall_macro, f1_micro, precision_micro, recall_micro, nmi, adjscore))
+                acc, f1_macro, precision_macro, recall_macro, f1_micro, precision_micro, recall_micro, nmi, adjscore))
 
         # fh = open('recoder.txt', 'a')
         #

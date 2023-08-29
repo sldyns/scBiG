@@ -1,25 +1,31 @@
+import warnings
+
 import numpy as np
 import scanpy as sc
 import tensorflow as tf
-import warnings
+import sys
+sys.path.append('../pkgs/scGAE/')
 warnings.simplefilter(action='ignore', category=FutureWarning)
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-#scGAE modules
+# scGAE modules
 from scgae import SCGAE
 from preprocessing import *
 from utils import *
 from clustering import *
 import h5py
-from scgraphne.utils import louvain,calculate_metric
+from scbig.utils import louvain, calculate_metric
 import os
 import random
+
+
 def seed(SEED):
-    os.environ['PYTHONHASHSEED']=str(SEED)
+    os.environ['PYTHONHASHSEED'] = str(SEED)
     random.seed(SEED)
     np.random.seed(SEED)
     tf.random.set_seed(SEED)
 
-def preprocess(adata,scale=True):
+
+def preprocess(adata, scale=True):
     sc.pp.filter_genes(adata, min_cells=3)
     sc.pp.filter_cells(adata, min_genes=200)
     sc.pp.normalize_total(adata, target_sum=1e4)
@@ -30,7 +36,7 @@ def preprocess(adata,scale=True):
         print('no scale!')
     return adata
 
-for dataset in ['DPT', 'YAN', 'Deng', 'Buettner']:
+for dataset in ['DPT', 'YAN', 'Deng']:
     print('----------------real data: {} ----------------- '.format(dataset))
     seed(0)
     method = 'scGAE'
@@ -42,18 +48,18 @@ for dataset in ['DPT', 'YAN', 'Deng', 'Buettner']:
         X = np.ceil(X).astype(np.int_)
         Y = np.array(Y).astype(np.int_).squeeze()
     idents = Y
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     adata.obs['true'] = Y
     adata = preprocess(adata)
     print(adata)
     count = adata.X
     # Compute adjacency matrix and normalized adjacency matrix
-    adj, adj_n = get_adj(count, k = 80)
+    adj, adj_n = get_adj(count, k=80)
 
-    model = SCGAE(count, adj, adj_n, hidden_dim = 120, latent_dim = 64, decA = "DBL", layer_enc = "GAT") ##15
-    model.train(epochs = 80, W_a = 0.4, W_x = 1)
+    model = SCGAE(count, adj, adj_n, hidden_dim=120, latent_dim=64, decA="DBL", layer_enc="GAT")  ##15
+    model.train(epochs=80, W_a=0.4, W_x=1)
 
-    #Genertate latent embedding by tSNE
+    # Genertate latent embedding by tSNE
     E = model.embedding(count, adj_n)
 
     # # Spectral clustering

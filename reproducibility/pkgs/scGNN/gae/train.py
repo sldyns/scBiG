@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 
 # Main entrance from https://github.com/MysteryVaibhav/RWR-GAE
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
@@ -6,14 +7,13 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.par
 SEED = 42
 import argparse
 import time
-import random
 import numpy as np
 import scipy.sparse as sp
 import torch
+
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 from torch import optim
-import torch.nn.functional as F
 from model import GCNModelVAE, GCNModelAE
 from optimizer import loss_function
 from utils import load_data, mask_test_edges, preprocess_graph, get_roc_score
@@ -39,7 +39,7 @@ parser.add_argument('--context', type=int, default=0, help="whether to use conte
 parser.add_argument('--ns', type=int, default=1, help="whether to use negative samples for skipgram")
 parser.add_argument('--n-clusters', default=7, type=int, help='number of clusters, 7 for cora, 6 for citeseer')
 parser.add_argument('--plot', type=int, default=0, help="whether to plot the clusters using tsne")
-parser.add_argument('--precisionModel', type=str, default='Float', 
+parser.add_argument('--precisionModel', type=str, default='Float',
                     help='Single Precision/Double precision: Float/Double (default:Float)')
 args = parser.parse_args()
 
@@ -89,7 +89,7 @@ def gae_for(args):
 
         hidden_emb = mu.data.numpy()
         roc_curr, ap_curr = get_roc_score(hidden_emb, adj_orig, val_edges, val_edges_false)
-        
+
         tqdm.write("Epoch: {}, train_loss_gae={:.5f}, val_ap={:.5f}, time={:.5f}".format(
             epoch + 1, cur_loss,
             ap_curr, time.time() - t))

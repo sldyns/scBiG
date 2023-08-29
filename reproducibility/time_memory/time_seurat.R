@@ -10,7 +10,7 @@ library(RcppCNPy)
 library(reticulate)
 np <- import("numpy")
 library(utils)
-dir<-paste0('../reproducibility/datasets/time/')
+dir<-paste0('../datasets/time/')
 
 t<-c('2000','4000','8000','16000','32000','64000')
 for ( i in 1:length(t)) {
@@ -61,6 +61,8 @@ for ( i in 1:length(t)) {
   data <- RunPCA(data, npcs = 64,features = VariableFeatures(object = data))
   e=Sys.time()
   print(e-s)
+  print(memory.size(max=TRUE))
+  memory_usage=memory.size(max=TRUE)
   data <- FindNeighbors(data, dims = 1:15)
   data <- FindClusters(data, resolution = 1,algorithm =1)
   data <- RunUMAP(data, dims = 1:15)
@@ -79,8 +81,8 @@ for ( i in 1:length(t)) {
   NMI = NMI(cluster, celltype)
   print(NMI)
   
-  root <-paste0('../reproducibility/results/time_memory/')
+  root <-paste0('../results/time_memory/')
   plot <-paste0("record_",name1,"_Seurat")
   np$savez(paste0(root, t[i],'/',plot,".npz"),
-           time=e-s)
+           time=e-s,memory_usage=memory_usage)
 }

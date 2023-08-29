@@ -1,16 +1,8 @@
-import sys
-import os
-import numpy as np
-import pickle as pkl
-import networkx as nx
 import scipy.sparse as sp
-import scipy.io
-import torch
-from torch import nn, optim
-from torch.nn import functional as F
-from torch.utils.data import Dataset, DataLoader
-from benchmark_util import *
 from igraph import *
+
+from benchmark_util import *
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -28,6 +20,7 @@ def parse_index_file(filename):
         index.append(int(line.strip()))
     return index
 
+
 # Original version of load_data
 
 
@@ -39,23 +32,23 @@ def load_data_ori(datasetName, discreteTag):
         names = ['x', 'tx', 'allx', 'graph']
     objects = []
     for i in range(len(names)):
-        with open(dir_path+"/data/sc/{}/ind.{}.{}".format(datasetName, datasetName, names[i]), 'rb') as f:
+        with open(dir_path + "/data/sc/{}/ind.{}.{}".format(datasetName, datasetName, names[i]), 'rb') as f:
             if sys.version_info > (3, 0):
                 objects.append(pkl.load(f, encoding='latin1'))
             else:
                 objects.append(pkl.load(f))
     x, tx, allx, graph = tuple(objects)
     test_idx_reorder = parse_index_file(
-        dir_path+"/data/sc/{}/ind.{}.test.index".format(datasetName, datasetName))
+        dir_path + "/data/sc/{}/ind.{}.test.index".format(datasetName, datasetName))
     test_idx_range = np.sort(test_idx_reorder)
 
     if datasetName == 'citeseer':
         # Fix citeseer datasetName (there are some isolated nodes in the graph)
         # Find isolated nodes, add them as zero-vecs into the right position
         test_idx_range_full = range(
-            min(test_idx_reorder), max(test_idx_reorder)+1)
+            min(test_idx_reorder), max(test_idx_reorder) + 1)
         tx_extended = sp.lil_matrix((len(test_idx_range_full), x.shape[1]))
-        tx_extended[test_idx_range-min(test_idx_range), :] = tx
+        tx_extended[test_idx_range - min(test_idx_range), :] = tx
         tx = tx_extended
 
     features = sp.vstack((allx, tx)).tolil()
@@ -73,29 +66,30 @@ def load_data(datasetName, discreteTag):
         names = ['x', 'tx', 'allx']
     objects = []
     for i in range(len(names)):
-        with open(dir_path+"/data/sc/{}/ind.{}.{}".format(datasetName, datasetName, names[i]), 'rb') as f:
+        with open(dir_path + "/data/sc/{}/ind.{}.{}".format(datasetName, datasetName, names[i]), 'rb') as f:
             if sys.version_info > (3, 0):
                 objects.append(pkl.load(f, encoding='latin1'))
             else:
                 objects.append(pkl.load(f))
     x, tx, allx = tuple(objects)
     test_idx_reorder = parse_index_file(
-        dir_path+"/data/sc/{}/ind.{}.test.index".format(datasetName, datasetName))
+        dir_path + "/data/sc/{}/ind.{}.test.index".format(datasetName, datasetName))
     test_idx_range = np.sort(test_idx_reorder)
 
     if datasetName == 'citeseer':
         # Fix citeseer datasetName (there are some isolated nodes in the graph)
         # Find isolated nodes, add them as zero-vecs into the right position
         test_idx_range_full = range(
-            min(test_idx_reorder), max(test_idx_reorder)+1)
+            min(test_idx_reorder), max(test_idx_reorder) + 1)
         tx_extended = sp.lil_matrix((len(test_idx_range_full), x.shape[1]))
-        tx_extended[test_idx_range-min(test_idx_range), :] = tx
+        tx_extended[test_idx_range - min(test_idx_range), :] = tx
         tx = tx_extended
 
     features = sp.vstack((allx, tx)).tolil()
     features[test_idx_reorder, :] = features[test_idx_range, :]
 
     return features
+
 
 # TODO: transform does not work here, leave it, will work on it in next version
 
@@ -110,6 +104,7 @@ class logtransform(object):
 
     def __call__(self, sample):
         return torch.log(sample)
+
 
 # Ref: https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
 
@@ -174,7 +169,7 @@ class scBenchDataset(Dataset):
             sample = self.transform(sample)
 
         if not self.discreteTag:
-            sample = torch.log(sample+1)
+            sample = torch.log(sample + 1)
 
         return sample, idx
 
@@ -213,7 +208,7 @@ class scDatasetDropout(Dataset):
             sample = self.transform(sample)
 
         if not self.discreteTag:
-            sample = torch.log(sample+1)
+            sample = torch.log(sample + 1)
 
         return sample, idx
 
@@ -251,6 +246,7 @@ class scDataset(Dataset):
 
         return sample, idx
 
+
 # Original
 
 
@@ -270,10 +266,12 @@ def loss_function(recon_x, x, mu, logvar):
 
     return BCE + KLD
 
+
 # Graph
 
 
-def loss_function_graph(recon_x, x, mu, logvar, graphregu=None, gammaPara=1.0, regulationMatrix=None, regularizer_type='noregu', reguPara=0.001, modelusage='AE', reduction='sum'):
+def loss_function_graph(recon_x, x, mu, logvar, graphregu=None, gammaPara=1.0, regulationMatrix=None,
+                        regularizer_type='noregu', reguPara=0.001, modelusage='AE', reduction='sum'):
     '''
     Regularized by the graph information
     Reconstruction + KL divergence losses summed over all elements and batch
@@ -287,35 +285,35 @@ def loss_function_graph(recon_x, x, mu, logvar, graphregu=None, gammaPara=1.0, r
     # Euclidean
     # BCE = gammaPara * vallina_mse_loss_function(recon_x, target, reduction='sum')
     BCE = gammaPara * \
-        vallina_mse_loss_function(recon_x, target, reduction=reduction)
+          vallina_mse_loss_function(recon_x, target, reduction=reduction)
     if regularizer_type == 'noregu':
         loss = BCE
     elif regularizer_type == 'LTMG':
         loss = BCE + reguPara * \
-            regulation_mse_loss_function(
-                recon_x, target, regulationMatrix, reduction=reduction)
+               regulation_mse_loss_function(
+                   recon_x, target, regulationMatrix, reduction=reduction)
     elif regularizer_type == 'LTMG01':
         loss = BCE + reguPara * \
-            regulation01_mse_loss_function(
-                recon_x, target, regulationMatrix, reduction=reduction)
+               regulation01_mse_loss_function(
+                   recon_x, target, regulationMatrix, reduction=reduction)
     elif regularizer_type == 'Graph':
         loss = BCE + reguPara * \
-            graph_mse_loss_function(
-                recon_x, target, graphregu=graphregu, reduction=reduction)
+               graph_mse_loss_function(
+                   recon_x, target, graphregu=graphregu, reduction=reduction)
     elif regularizer_type == 'GraphR':
         loss = BCE + reguPara * \
-            graph_mse_loss_function(
-                recon_x, target, graphregu=1-graphregu, reduction=reduction)
+               graph_mse_loss_function(
+                   recon_x, target, graphregu=1 - graphregu, reduction=reduction)
     elif regularizer_type == 'LTMG-Graph':
         loss = BCE + reguPara * regulation_mse_loss_function(recon_x, target, regulationMatrix, reduction=reduction) + \
-            reguPara * \
-            graph_mse_loss_function(
-                recon_x, target, graphregu=graphregu, reduction=reduction)
+               reguPara * \
+               graph_mse_loss_function(
+                   recon_x, target, graphregu=graphregu, reduction=reduction)
     elif regularizer_type == 'LTMG-GraphR':
         loss = BCE + reguPara * regulation_mse_loss_function(recon_x, target, regulationMatrix, reduction=reduction) + \
-            reguPara * \
-            graph_mse_loss_function(
-                recon_x, target, graphregu=1-graphregu, reduction=reduction)
+               reguPara * \
+               graph_mse_loss_function(
+                   recon_x, target, graphregu=1 - graphregu, reduction=reduction)
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -327,10 +325,13 @@ def loss_function_graph(recon_x, x, mu, logvar, graphregu=None, gammaPara=1.0, r
 
     return loss
 
+
 # Graph
 
 
-def loss_function_graph_celltype(recon_x, x, mu, logvar, graphregu=None, celltyperegu=None, gammaPara=1.0, regulationMatrix=None, regularizer_type='noregu', reguPara=0.001, reguParaCelltype=0.001, modelusage='AE', reduction='sum'):
+def loss_function_graph_celltype(recon_x, x, mu, logvar, graphregu=None, celltyperegu=None, gammaPara=1.0,
+                                 regulationMatrix=None, regularizer_type='noregu', reguPara=0.001,
+                                 reguParaCelltype=0.001, modelusage='AE', reduction='sum'):
     '''
     Regularized by the graph information
     Reconstruction + KL divergence losses summed over all elements and batch
@@ -344,29 +345,34 @@ def loss_function_graph_celltype(recon_x, x, mu, logvar, graphregu=None, celltyp
     # Euclidean
     # BCE = gammaPara * vallina_mse_loss_function(recon_x, target, reduction='sum')
     BCE = gammaPara * \
-        vallina_mse_loss_function(recon_x, target, reduction=reduction)
+          vallina_mse_loss_function(recon_x, target, reduction=reduction)
     if regularizer_type == 'noregu':
         loss = BCE
     elif regularizer_type == 'LTMG':
         loss = BCE + reguPara * \
-            regulation_mse_loss_function(
-                recon_x, target, regulationMatrix, reduction=reduction)
+               regulation_mse_loss_function(
+                   recon_x, target, regulationMatrix, reduction=reduction)
     elif regularizer_type == 'LTMG01':
         loss = BCE + reguPara * \
-            regulation01_mse_loss_function(
-                recon_x, target, regulationMatrix, reduction=reduction)
+               regulation01_mse_loss_function(
+                   recon_x, target, regulationMatrix, reduction=reduction)
     elif regularizer_type == 'Graph':
         loss = BCE + reguPara * \
-            graph_mse_loss_function(
-                recon_x, target, graphregu=graphregu, reduction=reduction)
+               graph_mse_loss_function(
+                   recon_x, target, graphregu=graphregu, reduction=reduction)
     elif regularizer_type == 'Celltype':
         loss = BCE + reguPara * graph_mse_loss_function(recon_x, target, graphregu=graphregu, reduction=reduction) + \
-            reguParaCelltype * \
-            graph_mse_loss_function(
-                recon_x, target, graphregu=celltyperegu, reduction=reduction)
+               reguParaCelltype * \
+               graph_mse_loss_function(
+                   recon_x, target, graphregu=celltyperegu, reduction=reduction)
     elif regularizer_type == 'CelltypeR':
-        loss = BCE + (1-gammaPara) * regulation01_mse_loss_function(recon_x, target, regulationMatrix, reduction=reduction) + reguPara * graph_mse_loss_function(recon_x,
-                                                                                                                                                                 target, graphregu=graphregu, reduction=reduction) + reguParaCelltype * graph_mse_loss_function(recon_x, target, graphregu=celltyperegu, reduction=reduction)
+        loss = BCE + (1 - gammaPara) * regulation01_mse_loss_function(recon_x, target, regulationMatrix,
+                                                                      reduction=reduction) + reguPara * graph_mse_loss_function(
+            recon_x,
+            target, graphregu=graphregu, reduction=reduction) + reguParaCelltype * graph_mse_loss_function(recon_x,
+                                                                                                           target,
+                                                                                                           graphregu=celltyperegu,
+                                                                                                           reduction=reduction)
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -377,6 +383,7 @@ def loss_function_graph_celltype(recon_x, x, mu, logvar, graphregu=None, celltyp
         loss = loss + KLD
 
     return loss
+
 
 # vallina mse
 def vallina_mse_loss_function(input, target, size_average=None, reduce=None, reduction='mean'):
@@ -422,6 +429,7 @@ def vallina_mse_loss_function(input, target, size_average=None, reduce=None, red
     #     ret = torch.mean(ret) if reduction == 'mean' else torch.sum(ret)
     return ret
 
+
 # Regulation mse as the regularizor
 # Now LTMG is set as the input
 
@@ -447,6 +455,7 @@ def regulation_mse_loss_function(input, target, regulationMatrix, size_average=N
     if reduction != 'none':
         ret = torch.mean(ret) if reduction == 'mean' else torch.sum(ret)
     return ret
+
 
 # Regulation mse as the regularizor
 # Now LTMG is set as the input
@@ -503,6 +512,7 @@ def graph_mse_loss_function(input, target, graphregu, size_average=None, reduce=
 def legacy_get_enum(size_average, reduce, emit_warning=True):
     # type: (Optional[bool], Optional[bool], bool) -> int
     return get_enum(legacy_get_string(size_average, reduce, emit_warning))
+
 
 # We use these functions in torch/legacy as well, in which case we'll silence the warning
 
@@ -570,7 +580,7 @@ def trimClustering(listResult, minMemberinCluster=5, maxClusterNumber=30):
         if not item in numDict:
             numDict[item] = 0
         else:
-            numDict[item] = numDict[item]+1
+            numDict[item] = numDict[item] + 1
 
     size = len(set(listResult))
     changeDict = {}
@@ -593,14 +603,14 @@ def readLTMG(LTMGDir, ltmgfile):
     '''
     # sparse mode
     # if sparseMode:
-    df = pd.read_csv(LTMGDir+ltmgfile, header=None,
+    df = pd.read_csv(LTMGDir + ltmgfile, header=None,
                      skiprows=1, delim_whitespace=True)
     for row in df.itertuples():
         # For the first row, it contains the number of genes and cells. Init the whole matrix
         if row[0] == 0:
             matrix = np.zeros((row[2], row[1]))
         else:
-            matrix[row[2]-1][row[1]-1] = row[3]
+            matrix[row[2] - 1][row[1] - 1] = row[3]
     # nonsparse mode: read in csv format, very very slow when the input file is huge, not using
     # else:
     #     matrix = pd.read_csv(LTMGDir+ltmgfile,header=None, index_col=None, delimiter='\t', engine='c')
@@ -616,7 +626,7 @@ def readLTMGnonsparse(LTMGDir, ltmgfile):
     Read LTMG matrix as the regularizor. nonsparseMode
     '''
     # nonsparse mode: read in csv format, very very slow when the input file is huge, not using
-    matrix = pd.read_csv(LTMGDir+ltmgfile, header=None,
+    matrix = pd.read_csv(LTMGDir + ltmgfile, header=None,
                          index_col=None, delimiter='\t', engine='c')
     matrix = matrix.to_numpy()
     matrix = matrix.transpose()

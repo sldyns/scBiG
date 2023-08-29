@@ -1,12 +1,12 @@
-import numpy as np
-import networkx as nx
 import community as community_louvain
+import networkx as nx
+import numpy as np
+
 
 # Compute cluster centroids, which is the mean of all points in one cluster.
 def computeCentroids(data, labels):
     n_clusters = len(np.unique(labels))
     return np.array([data[labels == i].mean(0) for i in range(n_clusters)])
-
 
 
 class louvain:
@@ -36,4 +36,3 @@ class louvain:
         self.updateLabels(self.level)
         self.centroids = computeCentroids(inputs, self.labels)
         return
-

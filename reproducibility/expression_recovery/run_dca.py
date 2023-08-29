@@ -1,15 +1,17 @@
-import numpy as np
-import scanpy as sc
-import pandas as pd
-from dca.api import dca
-import h5py
-from scgraphne import setup_seed
-from sklearn.metrics import mean_squared_error
-from math import sqrt
-from scipy.stats import pearsonr
 import os
+from math import sqrt
 
-for sparity in ['0.8','0.85','0.9','0.95']:
+import h5py
+import numpy as np
+import pandas as pd
+import scanpy as sc
+from dca.api import dca
+from scipy.stats import pearsonr
+from sklearn.metrics import mean_squared_error
+
+from scbig import setup_seed
+
+for sparity in ['0.8', '0.85', '0.9', '0.95']:
     print('----------------sparity level of data: {} ----------------- '.format(sparity))
     setup_seed(0)
     method = 'DCA'
@@ -17,7 +19,7 @@ for sparity in ['0.8','0.85','0.9','0.95']:
     dir1 = '{}'.format(sparity)
     dir2 = 'data_{}.h5'.format(sparity)
 
-    with h5py.File(os.path.join(dir0,'datasets/sim', dir2), 'r') as data_mat:
+    with h5py.File(os.path.join(dir0, 'datasets/sim', dir2), 'r') as data_mat:
         X = np.array(data_mat['X'])
         Xt = np.array(data_mat['X_true'])
         Y = np.array(data_mat['Y'])
@@ -25,10 +27,10 @@ for sparity in ['0.8','0.85','0.9','0.95']:
         Xt = np.ceil(Xt).astype(np.int_)
         Y = np.array(Y).astype(np.int_)
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     print(adata)
     sc.pp.filter_genes(adata, min_cells=1)
-    adata1 = adata ##use denoise
+    adata1 = adata  ##use denoise
     print("Sparsity: ", np.where(adata.X == 0)[0].shape[0] / (adata.X.shape[0] * adata.X.shape[1]))
     adata.obs['cl_type'] = Y
     n_clusters = len(np.unique(Y))
@@ -50,7 +52,7 @@ for sparity in ['0.8','0.85','0.9','0.95']:
 
     ##DCA training
     dca(adata1, mode='denoise', ae_type='zinb', threads=1)
-    adata.obsm['imputed']=adata1.X
+    adata.obsm['imputed'] = adata1.X
 
     X_Impute = np.array(adata.obsm['imputed']).reshape(-1)
     X_true = np.array(data.values.reshape(-1))
@@ -72,12 +74,3 @@ for sparity in ['0.8','0.85','0.9','0.95']:
     print(pcc_false)
     print(rmse)
     print(pcc)
-
-
-
-
-
-
-
-
-

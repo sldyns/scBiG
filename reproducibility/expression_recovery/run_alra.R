@@ -1,5 +1,5 @@
 # Demo for running ALRA. 
-source('../reproducibility/pkgs/ALRA/alra.R')
+source('../pkgs/ALRA/alra.R')
 library(dplyr)
 library(magrittr)
 library(hdf5r)
@@ -16,7 +16,7 @@ for ( i in 1:length(t)) {
   print(t[i])
   name <-t[i]
   #A's row is cell
-  h1=H5Fopen(paste0("../reproducibility/datasets/sim/","data_",name,".h5"))
+  h1=H5Fopen(paste0("../datasets/sim/","data_",name,".h5"))
   h5dump(h1,load=FALSE)
   A=t(h1$X)
   dim(A)
@@ -51,7 +51,7 @@ for ( i in 1:length(t)) {
   rmsed <- sqrt(mean((real[X]-pred[X])^2))
   cord <- cor(real[X],pred[X], method = 'pearson')
   
-  root <-paste0("../reproducibility/results/expression_recovery/")
+  root <-paste0("../results/expression_recovery/")
   plot <-paste0("result_",name,"_",method)
   np$savez(paste0(root, name,'/',plot,".npz"),
            rmse=round(rmse,4),

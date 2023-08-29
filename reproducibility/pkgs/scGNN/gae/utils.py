@@ -71,7 +71,7 @@ def load_data(dataset):
     y_val[val_mask, :] = labels[val_mask, :]
     y_test[test_mask, :] = labels[test_mask, :]
 
-    return adj, features, y_test, tx, ty, test_mask, np.argmax(labels,1)
+    return adj, features, y_test, tx, ty, test_mask, np.argmax(labels, 1)
 
 
 def parse_index_file(filename):
@@ -89,7 +89,8 @@ def sparse_to_tuple(sparse_mx):
     shape = sparse_mx.shape
     return coords, values, shape
 
-#Updated
+
+# Updated
 def mask_test_edges(adj):
     # Function to build test set with 10% positive links
     # NOTE: Splits are randomized and results might slightly deviate from reported numbers in the paper.
@@ -154,15 +155,15 @@ def mask_test_edges(adj):
                 continue
             if ismember([idx_i, idx_j], np.array(val_edges_false)):
                 continue
-        if ~ismember([idx_i,idx_j],edges_all) and ~ismember([idx_j,idx_i],edges_all):
+        if ~ismember([idx_i, idx_j], edges_all) and ~ismember([idx_j, idx_i], edges_all):
             val_edges_false.append([idx_i, idx_j])
         else:
             # Debug
-            print(str(idx_i)+" "+str(idx_j))
+            print(str(idx_i) + " " + str(idx_j))
         # Original:
         # val_edges_false.append([idx_i, idx_j])
 
-    #TODO: temporary disable for ismember function may require huge memory.
+    # TODO: temporary disable for ismember function may require huge memory.
     # assert ~ismember(test_edges_false, edges_all)
     # assert ~ismember(val_edges_false, edges_all)
     # assert ~ismember(val_edges, train_edges)

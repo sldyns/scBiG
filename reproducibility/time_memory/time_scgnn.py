@@ -1,83 +1,47 @@
-import pandas as pd
-import pickle
-import os.path
-import scipy.sparse as sp
-import scipy.io
-
 #####train scGNN
 import argparse
-import sys
-import numpy as np
-import pickle as pkl
-import networkx as nx
-import scipy.sparse as sp
 import datetime
-import torch
-from torch.utils.data import DataLoader
-from torch import optim
-from sklearn.metrics import adjusted_rand_score
-from sklearn.cluster import KMeans, SpectralClustering, AffinityPropagation, AgglomerativeClustering, Birch, DBSCAN, FeatureAgglomeration, OPTICS, MeanShift
-from model import AE, VAE
-from util_function import *
-from graph_function import *
-from benchmark_util import *
-from gae_embedding import GAEembedding, measure_clustering_results, test_clustering_benchmark_results
-from scgraphne.utils import louvain,calculate_metric,setup_seed
 import os
-import time
-from memory_profiler import profile
-
+import os.path
+import pickle
+import pickle as pkl
 import sys
 sys.path.append('../pkgs/scGNN/')
 
+import time
+import networkx as nx
+import numpy as np
+import pandas as pd
+import scipy.io
+import scipy.sparse as sp
+import torch
+from benchmark_util import *
+from gae_embedding import GAEembedding
+from graph_function import *
+from memory_profiler import profile
+from model import AE, VAE
+from sklearn.cluster import KMeans, SpectralClustering, AffinityPropagation, AgglomerativeClustering, Birch, OPTICS, \
+    MeanShift
+from sklearn.metrics import adjusted_rand_score
+from torch import optim
+from torch.utils.data import DataLoader
+from util_function import *
+
+from scbig.utils import louvain, calculate_metric, setup_seed
+
+
 ###########################################   PreprocessingscGNN    ################################################
 
-for data in ['2000','4000','8000','16000','32000','64000']:
+for data in ['2000', '4000', '8000', '16000', '32000', '64000']:
     print('----------------real data: {} ----------------- '.format(data))
-    parser = argparse.ArgumentParser(description='Main Entrance of scGNN')
-    parser.add_argument('--datasetName', type=str, default='cell{}_counts.csv'.format(data),
-                        help='TGFb/sci-CAR/sci-CAR_LTMG/MMPbasal/MMPbasal_all/MMPbasal_allgene/MMPbasal_allcell/MMPepo/MMPbasal_LTMG/MMPbasal_all_LTMG/MMPbasal_2000')
-    parser.add_argument('--datasetDir', type=str, default='../scGNN/Data/time/{}/'.format(data),
-                        help='Directory of data, default(/home/wangjue/biodata/scData/10x/6/)')
-    parser.add_argument('--nonfilterCSVTag', action='store_true', default=False,
-                        help='Not filter and generating CSV')
-    parser.add_argument('--inferLTMGTag', action='store_true', default=False,
-                        help='Infer LTMG (Optional)')
-    parser.add_argument('--nonsparseOutTag', action='store_true', default=False,
-                        help='Not use sparse coding')
-    parser.add_argument('--LTMGDir', type=str, default='../scGNN/Data/time/{}/'.format(data),
-                        help='directory of LTMGDir, default:(/home/wangjue/biodata/scData/allBench/)')
-    parser.add_argument('--expressionFile', type=str, default='Use_expression.csv',
-                        help='expression File in csv')
-    parser.add_argument('--ltmgFile', type=str, default='ltmg.csv',
-                        help='expression File in csv')
-    parser.add_argument('--filetype', type=str, default='CSV',
-                        help='select input filetype, 10X or CSV: default(10X)')
-    parser.add_argument('--delim', type=str, default='comma',
-                        help='File delim type, comma or space: default(comma)')
-    # param
-    parser.add_argument('--transform', type=str, default='log',
-                        help='Whether transform')
-    parser.add_argument('--cellRatio', type=float, default=0.99,
-                        help='cell ratio')
-    parser.add_argument('--geneRatio', type=float, default=0.99,
-                        help='gene ratio')
-    parser.add_argument('--geneCriteria', type=str, default='variance',
-                        help='gene Criteria')
-    parser.add_argument('--geneSelectnum', type=int, default=2000,
-                        help='select top gene numbers')
-    parser.add_argument('--transpose', action='store_true', default=False,
-                        help='whether transpose or not')
-    parser.add_argument('--tabuCol', type=str, default='',
-                        help='Not use some columns and setting their names split by ,')
 
-    args = parser.parse_args()
-    args.sparseOutTag = not args.nonsparseOutTag
-    args.filterCSVTag = not args.nonfilterCSVTag
+
+
     # args.inferLTMGTag = not args.noninferLTMGTag
     # print(args)
 
-    def preprocessing10X(dir, datasetName, csvFilename, transform='log', cellRatio=0.99, geneRatio=0.99, geneCriteria='variance', geneSelectnum=2000, sparseOut=True):
+    def preprocessing10X(dir, datasetName, csvFilename, transform='log', cellRatio=0.99, geneRatio=0.99,
+                         geneCriteria='variance', geneSelectnum=2000, sparseOut=True):
         '''
         preprocessing 10X data
         transform='log' or None
@@ -88,20 +52,20 @@ for data in ['2000','4000','8000','16000','32000','64000']:
 
         # Three files of 10x
         featuresFilename = filefolder + 'features.tsv'
-        if os.path.exists(featuresFilename+'.gz'):
-            featuresFilename = featuresFilename+'.gz'
+        if os.path.exists(featuresFilename + '.gz'):
+            featuresFilename = featuresFilename + '.gz'
         elif not os.path.exists(featuresFilename):
             print('features.tsv or features.tsv.gz not exists!')
 
         barcodesFilename = filefolder + 'barcodes.tsv'
-        if os.path.exists(barcodesFilename+'.gz'):
-            barcodesFilename = barcodesFilename+'.gz'
+        if os.path.exists(barcodesFilename + '.gz'):
+            barcodesFilename = barcodesFilename + '.gz'
         elif not os.path.exists(barcodesFilename):
             print('barcodes.tsv or barcodes.tsv.gz not exists!')
 
         expressionFilename = filefolder + 'matrix.mtx'
-        if os.path.exists(expressionFilename+'.gz'):
-            expressionFilename = expressionFilename+'.gz'
+        if os.path.exists(expressionFilename + '.gz'):
+            expressionFilename = expressionFilename + '.gz'
         elif not os.path.exists(expressionFilename):
             print('matrix.mtx or matrix.mtx.gz not exists!')
 
@@ -134,11 +98,11 @@ for data in ['2000','4000','8000','16000','32000','64000']:
 
         for row in df.itertuples():
             if row.Index % 1000000 == 0:
-                print(str(row.Index)+' items in expression has been proceed.')
-            if not (row[2]-1) == oldcellindex:
-                if (row[2]-1) < oldcellindex:
-                    print('Potential error in 10X data: '+str(oldcellindex)+'!')
-                if len(tmpgenelist) >= len(genes)*(1-cellRatio) and not oldcellindex == -1:
+                print(str(row.Index) + ' items in expression has been proceed.')
+            if not (row[2] - 1) == oldcellindex:
+                if (row[2] - 1) < oldcellindex:
+                    print('Potential error in 10X data: ' + str(oldcellindex) + '!')
+                if len(tmpgenelist) >= len(genes) * (1 - cellRatio) and not oldcellindex == -1:
                     for i in range(len(tmpgenelist)):
                         tmplist = expressionDict[tmpgenelist[i]]
                         tmplist.append(tmpdatalist[i])
@@ -153,17 +117,17 @@ for data in ['2000','4000','8000','16000','32000','64000']:
                     cellNum += 1
                 tmpgenelist = []
                 tmpdatalist = []
-                oldcellindex = row[2]-1
+                oldcellindex = row[2] - 1
 
-            tmpgenelist.append(row[1]-1)
+            tmpgenelist.append(row[1] - 1)
             tmpdata = row[3]
             if transform == 'log':
-                tmpdatalist.append(np.log(tmpdata+1))
+                tmpdatalist.append(np.log(tmpdata + 1))
             elif transform == None:
                 tmpdatalist.append(tmpdata)
 
         # post processing
-        if len(tmpgenelist) >= len(genes)*(1-cellRatio):
+        if len(tmpgenelist) >= len(genes) * (1 - cellRatio):
             for i in range(len(tmpgenelist)):
                 tmplist = expressionDict[tmpgenelist[i]]
                 tmplist.append(tmpdatalist[i])
@@ -183,7 +147,7 @@ for data in ['2000','4000','8000','16000','32000','64000']:
         finalList = []
         for i in range(len(genes)):
             tmplist = expressionDict[i]
-            if len(tmplist) >= len(cellNamelist)*(1-geneRatio):
+            if len(tmplist) >= len(cellNamelist) * (1 - geneRatio):
                 geneNamelist.append(i)
                 if geneCriteria == 'variance':
                     finalList.append(-np.var(tmplist))
@@ -211,7 +175,7 @@ for data in ['2000','4000','8000','16000','32000','64000']:
             # print('{}\t{}\t{}'.format(cellNamelist[i],cells[cellNamelist[i]],cells[cellNamelist[i]][0]))
             header = header + ',' + cells[0][cellNamelist[i]]
             outcelllist.append(cells[0][cellNamelist[i]])
-        outList.append(header+'\n')
+        outList.append(header + '\n')
 
         for index in tmpChooseIndex:
             # print(index)
@@ -238,7 +202,7 @@ for data in ['2000','4000','8000','16000','32000','64000']:
                     if cellNamelist[l] == clist[j]:
                         tmpline = tmpline + ','
                         tmpline = tmpline + str(elist[j])
-                        k = j+1
+                        k = j + 1
                         break
                     elif cellNamelist[l] < clist[j]:
                         tmpline = tmpline + ','
@@ -247,11 +211,11 @@ for data in ['2000','4000','8000','16000','32000','64000']:
                         break
 
             size = tmpline.split(',')
-            for i in range(len(size), len(cellNamelist)+1):
+            for i in range(len(size), len(cellNamelist) + 1):
                 tmpline = tmpline + ','
                 tmpline = tmpline + str(0.0)
 
-            outList.append(tmpline+'\n')
+            outList.append(tmpline + '\n')
             size = tmpline.split(',')
             # For debug usage
             # print(str(index)+'*'+str(len(size)))
@@ -278,7 +242,8 @@ for data in ['2000','4000','8000','16000','32000','64000']:
                 f.close()
 
 
-    def preprocessingCSV(dir, datasetName, csvFilename, delim='comma', transform='log', cellRatio=0.99, geneRatio=0.99, geneCriteria='variance', geneSelectnum=2000, transpose=False, tabuCol=''):
+    def preprocessingCSV(dir, datasetName, csvFilename, delim='comma', transform='log', cellRatio=0.99, geneRatio=0.99,
+                         geneCriteria='variance', geneSelectnum=2000, transpose=False, tabuCol=''):
         '''
         preprocessing CSV files:
         transform='log' or None
@@ -311,9 +276,9 @@ for data in ['2000','4000','8000','16000','32000','64000']:
         print('Data loaded, start filtering...')
         if transpose == True:
             df = df.T
-        df1 = df[df.astype('bool').mean(axis=1) >= (1-geneRatio)]
+        df1 = df[df.astype('bool').mean(axis=1) >= (1 - geneRatio)]
         print('After preprocessing, {} genes remaining'.format(df1.shape[0]))
-        criteriaGene = df1.astype('bool').mean(axis=0) >= (1-cellRatio)
+        criteriaGene = df1.astype('bool').mean(axis=0) >= (1 - cellRatio)
         df2 = df1[df1.columns[criteriaGene]]
         print('After preprocessing, {} cells have {} nonzero'.format(
             df2.shape[1], geneRatio))
@@ -329,28 +294,29 @@ for data in ['2000','4000','8000','16000','32000','64000']:
         if args.filterCSVTag:
             print('Step1: Start filter and generating CSV')
             if args.filetype == '10X':
-                expressionFilename = args.LTMGDir+args.datasetName+'/'+args.expressionFile
+                expressionFilename = args.LTMGDir + args.datasetName + '/' + args.expressionFile
                 # data = preprocessing10X(args.datasetDir, args.datasetName, args.LTMGDir+args.datasetName+'/'+args.expressionFile, args.transform, args.cellRatio, args.geneRatio, args.geneCriteria, args.geneSelectnum)
                 preprocessing10X(args.datasetDir, args.datasetName, expressionFilename, args.transform,
-                                 args.cellRatio, args.geneRatio, args.geneCriteria, args.geneSelectnum, args.sparseOutTag)
+                                 args.cellRatio, args.geneRatio, args.geneCriteria, args.geneSelectnum,
+                                 args.sparseOutTag)
             elif args.filetype == 'CSV':
-                expressionFilename = args.LTMGDir+args.expressionFile
+                expressionFilename = args.LTMGDir + args.expressionFile
                 preprocessingCSV(args.datasetDir, args.datasetName, expressionFilename, args.delim, args.transform,
-                                 args.cellRatio, args.geneRatio, args.geneCriteria, args.geneSelectnum, args.transpose, args.tabuCol)
+                                 args.cellRatio, args.geneRatio, args.geneCriteria, args.geneSelectnum, args.transpose,
+                                 args.tabuCol)
 
         if args.inferLTMGTag:
             from LTMG_R import *
+
             print('Step2: Start infer LTMG from CSV')
             if args.filetype == '10X':
-                ltmgdir = args.LTMGDir+args.datasetName+'/'
+                ltmgdir = args.LTMGDir + args.datasetName + '/'
             elif args.filetype == 'CSV':
                 ltmgdir = args.LTMGDir
             # run LTMG in R
-            runLTMG(ltmgdir+args.expressionFile, ltmgdir)
+            runLTMG(ltmgdir + args.expressionFile, ltmgdir)
 
-
-
-for dataset in ['2000','4000','8000','16000','32000','64000']:
+for dataset in ['2000', '4000', '8000', '16000', '32000', '64000']:
     print('----------------real data: {} ----------------- '.format(dataset))
     setup_seed(0)
 
@@ -496,7 +462,7 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
 
     torch.manual_seed(args.seed)
     device = torch.device("cuda" if args.cuda else "cpu")
-    print('Using device:'+str(device))
+    print('Using device:' + str(device))
 
     if not args.coresUsage == 'all':
         torch.set_num_threads(int(args.coresUsage))
@@ -508,28 +474,28 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
     # load scRNA in csv
     print('---0:00:00---scRNA starts loading.')
     data, genelist, celllist = loadscExpression(
-        args.datasetDir+args.datasetName+'/'+args.ltmgExpressionFile, sparseMode=args.sparseMode)
-    print('---'+str(datetime.timedelta(seconds=int(time.time()-start_time))) +
+        args.datasetDir + args.datasetName + '/' + args.ltmgExpressionFile, sparseMode=args.sparseMode)
+    print('---' + str(datetime.timedelta(seconds=int(time.time() - start_time))) +
           '---scRNA has been successfully loaded')
 
     scData = scDataset(data)
     train_loader = DataLoader(
         scData, batch_size=args.batch_size, shuffle=False, **kwargs)
-    print('---'+str(datetime.timedelta(seconds=int(time.time()-start_time))) +
+    print('---' + str(datetime.timedelta(seconds=int(time.time() - start_time))) +
           '---TrainLoader has been successfully prepared.')
 
     # load LTMG in sparse version
     if not args.regulized_type == 'noregu':
         print('Start loading LTMG in sparse coding.')
         regulationMatrix = readLTMG(
-            args.LTMGDir+args.datasetName+'/', args.ltmgFile)
+            args.LTMGDir + args.datasetName + '/', args.ltmgFile)
         regulationMatrix = torch.from_numpy(regulationMatrix)
         if args.precisionModel == 'Double':
             regulationMatrix = regulationMatrix.type(torch.DoubleTensor)
         elif args.precisionModel == 'Float':
             regulationMatrix = regulationMatrix.type(torch.FloatTensor)
-        print('---'+str(datetime.timedelta(seconds=int(time.time()-start_time))
-                        )+'---LTMG has been successfully prepared.')
+        print('---' + str(datetime.timedelta(seconds=int(time.time() - start_time))
+                          ) + '---LTMG has been successfully prepared.')
     else:
         regulationMatrix = None
 
@@ -541,8 +507,9 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
     if args.precisionModel == 'Double':
         model = model.double()
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    print('---'+str(datetime.timedelta(seconds=int(time.time()-start_time))) +
+    print('---' + str(datetime.timedelta(seconds=int(time.time() - start_time))) +
           '---Pytorch model ready.')
+
 
     # @profile
     def train(epoch, train_loader=train_loader, EMFlag=False, taskType='celltype', sparseImputation='nonsparse'):
@@ -568,7 +535,7 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
             if taskType == 'imputation':
                 if sparseImputation == 'nonsparse':
                     celltypesampleBatch = celltypesample[dataindex,
-                                                         :][:, dataindex]
+                                          :][:, dataindex]
                     adjsampleBatch = adjsample[dataindex, :][:, dataindex]
                 elif sparseImputation == 'sparse':
                     celltypesampleBatch = generateCelltypeRegu(
@@ -597,18 +564,37 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
                 recon_batch, mu, logvar, z = model(data)
                 if taskType == 'celltype':
                     if EMFlag and (not args.EMreguTag):
-                        loss = loss_function_graph(recon_batch, data.view(-1, recon_batch.shape[1]), mu, logvar, gammaPara=args.gammaPara, regulationMatrix=regulationMatrixBatch,
-                                                   regularizer_type='noregu', reguPara=args.alphaRegularizePara, modelusage=args.model, reduction=args.reduction)
+                        loss = loss_function_graph(recon_batch, data.view(-1, recon_batch.shape[1]), mu, logvar,
+                                                   gammaPara=args.gammaPara, regulationMatrix=regulationMatrixBatch,
+                                                   regularizer_type='noregu', reguPara=args.alphaRegularizePara,
+                                                   modelusage=args.model, reduction=args.reduction)
                     else:
-                        loss = loss_function_graph(recon_batch, data.view(-1, recon_batch.shape[1]), mu, logvar, gammaPara=args.gammaPara, regulationMatrix=regulationMatrixBatch,
-                                                   regularizer_type=args.regulized_type, reguPara=args.alphaRegularizePara, modelusage=args.model, reduction=args.reduction)
+                        loss = loss_function_graph(recon_batch, data.view(-1, recon_batch.shape[1]), mu, logvar,
+                                                   gammaPara=args.gammaPara, regulationMatrix=regulationMatrixBatch,
+                                                   regularizer_type=args.regulized_type,
+                                                   reguPara=args.alphaRegularizePara, modelusage=args.model,
+                                                   reduction=args.reduction)
                 elif taskType == 'imputation':
                     if EMFlag and (not args.EMreguTag):
-                        loss = loss_function_graph_celltype(recon_batch, data.view(-1, recon_batch.shape[1]), mu, logvar, graphregu=adjsampleBatch, celltyperegu=celltypesampleBatch, gammaPara=args.gammaImputePara,
-                                                            regulationMatrix=regulationMatrixBatch, regularizer_type=args.EMregulized_type, reguPara=args.graphImputePara, reguParaCelltype=args.celltypeImputePara, modelusage=args.model, reduction=args.reduction)
+                        loss = loss_function_graph_celltype(recon_batch, data.view(-1, recon_batch.shape[1]), mu,
+                                                            logvar, graphregu=adjsampleBatch,
+                                                            celltyperegu=celltypesampleBatch,
+                                                            gammaPara=args.gammaImputePara,
+                                                            regulationMatrix=regulationMatrixBatch,
+                                                            regularizer_type=args.EMregulized_type,
+                                                            reguPara=args.graphImputePara,
+                                                            reguParaCelltype=args.celltypeImputePara,
+                                                            modelusage=args.model, reduction=args.reduction)
                     else:
-                        loss = loss_function_graph_celltype(recon_batch, data.view(-1, recon_batch.shape[1]), mu, logvar, graphregu=adjsampleBatch, celltyperegu=celltypesampleBatch, gammaPara=args.gammaImputePara,
-                                                            regulationMatrix=regulationMatrixBatch, regularizer_type=args.regulized_type, reguPara=args.graphImputePara, reguParaCelltype=args.celltypeImputePara, modelusage=args.model, reduction=args.reduction)
+                        loss = loss_function_graph_celltype(recon_batch, data.view(-1, recon_batch.shape[1]), mu,
+                                                            logvar, graphregu=adjsampleBatch,
+                                                            celltyperegu=celltypesampleBatch,
+                                                            gammaPara=args.gammaImputePara,
+                                                            regulationMatrix=regulationMatrixBatch,
+                                                            regularizer_type=args.regulized_type,
+                                                            reguPara=args.graphImputePara,
+                                                            reguParaCelltype=args.celltypeImputePara,
+                                                            modelusage=args.model, reduction=args.reduction)
 
             elif args.model == 'AE':
                 recon_batch, z = model(data)
@@ -616,18 +602,39 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
                 logvar_dummy = ''
                 if taskType == 'celltype':
                     if EMFlag and (not args.EMreguTag):
-                        loss = loss_function_graph(recon_batch, data.view(-1, recon_batch.shape[1]), mu_dummy, logvar_dummy, gammaPara=args.gammaPara,
-                                                   regulationMatrix=regulationMatrixBatch, regularizer_type='noregu', reguPara=args.alphaRegularizePara, modelusage=args.model, reduction=args.reduction)
+                        loss = loss_function_graph(recon_batch, data.view(-1, recon_batch.shape[1]), mu_dummy,
+                                                   logvar_dummy, gammaPara=args.gammaPara,
+                                                   regulationMatrix=regulationMatrixBatch, regularizer_type='noregu',
+                                                   reguPara=args.alphaRegularizePara, modelusage=args.model,
+                                                   reduction=args.reduction)
                     else:
-                        loss = loss_function_graph(recon_batch, data.view(-1, recon_batch.shape[1]), mu_dummy, logvar_dummy, gammaPara=args.gammaPara, regulationMatrix=regulationMatrixBatch,
-                                                   regularizer_type=args.regulized_type, reguPara=args.alphaRegularizePara, modelusage=args.model, reduction=args.reduction)
+                        loss = loss_function_graph(recon_batch, data.view(-1, recon_batch.shape[1]), mu_dummy,
+                                                   logvar_dummy, gammaPara=args.gammaPara,
+                                                   regulationMatrix=regulationMatrixBatch,
+                                                   regularizer_type=args.regulized_type,
+                                                   reguPara=args.alphaRegularizePara, modelusage=args.model,
+                                                   reduction=args.reduction)
                 elif taskType == 'imputation':
                     if EMFlag and (not args.EMreguTag):
-                        loss = loss_function_graph_celltype(recon_batch, data.view(-1, recon_batch.shape[1]), mu_dummy, logvar_dummy, graphregu=adjsampleBatch, celltyperegu=celltypesampleBatch, gammaPara=args.gammaImputePara,
-                                                            regulationMatrix=regulationMatrixBatch, regularizer_type=args.EMregulized_type, reguPara=args.graphImputePara, reguParaCelltype=args.celltypeImputePara, modelusage=args.model, reduction=args.reduction)
+                        loss = loss_function_graph_celltype(recon_batch, data.view(-1, recon_batch.shape[1]), mu_dummy,
+                                                            logvar_dummy, graphregu=adjsampleBatch,
+                                                            celltyperegu=celltypesampleBatch,
+                                                            gammaPara=args.gammaImputePara,
+                                                            regulationMatrix=regulationMatrixBatch,
+                                                            regularizer_type=args.EMregulized_type,
+                                                            reguPara=args.graphImputePara,
+                                                            reguParaCelltype=args.celltypeImputePara,
+                                                            modelusage=args.model, reduction=args.reduction)
                     else:
-                        loss = loss_function_graph_celltype(recon_batch, data.view(-1, recon_batch.shape[1]), mu_dummy, logvar_dummy, graphregu=adjsampleBatch, celltyperegu=celltypesampleBatch, gammaPara=args.gammaImputePara,
-                                                            regulationMatrix=regulationMatrixBatch, regularizer_type=args.regulized_type, reguPara=args.graphImputePara, reguParaCelltype=args.celltypeImputePara, modelusage=args.model, reduction=args.reduction)
+                        loss = loss_function_graph_celltype(recon_batch, data.view(-1, recon_batch.shape[1]), mu_dummy,
+                                                            logvar_dummy, graphregu=adjsampleBatch,
+                                                            celltyperegu=celltypesampleBatch,
+                                                            gammaPara=args.gammaImputePara,
+                                                            regulationMatrix=regulationMatrixBatch,
+                                                            regularizer_type=args.regulized_type,
+                                                            reguPara=args.graphImputePara,
+                                                            reguParaCelltype=args.celltypeImputePara,
+                                                            modelusage=args.model, reduction=args.reduction)
 
             # L1 and L2 regularization
             # 0.0 for no regularization
@@ -644,8 +651,8 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
             if batch_idx % args.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(train_loader.dataset),
-                    100. * batch_idx / len(train_loader),
-                    loss.item() / len(data)))
+                           100. * batch_idx / len(train_loader),
+                           loss.item() / len(data)))
 
             # for batch
             if batch_idx == 0:
@@ -658,7 +665,7 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
                 z_all = torch.cat((z_all, z), 0)
 
         print('====> Epoch: {} Average loss: {:.4f}'.format(
-              epoch, train_loss / len(train_loader.dataset)))
+            epoch, train_loss / len(train_loader.dataset)))
 
         return recon_batch_all, data_all, z_all
 
@@ -673,7 +680,7 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
         if not os.path.exists(args.outputDir):
             os.makedirs(args.outputDir)
         # outParaTag = str(args.gammaImputePara)+'-'+str(args.graphImputePara)+'-'+str(args.celltypeImputePara)
-        ptfileStart = args.outputDir+args.datasetName+'_EMtrainingStart.pt'
+        ptfileStart = args.outputDir + args.datasetName + '_EMtrainingStart.pt'
         # ptfile      = args.outputDir+args.datasetName+'_EMtraining.pt'
 
         # Debug
@@ -690,7 +697,7 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
                 recon, original, z = train(epoch, EMFlag=False)
 
             zOut = z.detach().cpu().numpy()
-            print('zOut ready at ' + str(time.time()-start_time))
+            print('zOut ready at ' + str(time.time() - start_time))
             ptstatus = model.state_dict()
 
             # Store reconOri for imputation
@@ -701,11 +708,11 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
 
             # Here para = 'euclidean:10'
             # adj, edgeList = generateAdj(zOut, graphType='KNNgraphML', para = args.knn_distance+':'+str(args.k))
-            print('---'+str(datetime.timedelta(seconds=int(time.time()-start_time)))+'---Start Prune')
-            adj, edgeList = generateAdj(zOut, graphType=args.prunetype, para=args.knn_distance+':'+str(
+            print('---' + str(datetime.timedelta(seconds=int(time.time() - start_time))) + '---Start Prune')
+            adj, edgeList = generateAdj(zOut, graphType=args.prunetype, para=args.knn_distance + ':' + str(
                 args.k), adjTag=(args.useGAEembedding or args.useBothembedding))
-            print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                           start_time)))+'---Prune Finished')
+            print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                             start_time))) + '---Prune Finished')
             # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
             # print('Mem consumption: '+str(mem))
 
@@ -729,7 +736,6 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
                 sys.exit(0)
 
         if args.debugMode == 'loadPrune':
-
             with open('edgeListFile', 'rb') as edgeListFile:
                 edgeList = pkl.load(edgeListFile)
 
@@ -751,13 +757,13 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
         # Whether use GAE embedding
         if args.useGAEembedding or args.useBothembedding:
             zDiscret = zOut > np.mean(zOut, axis=0)
-            zDiscret = 1.0*zDiscret
+            zDiscret = 1.0 * zDiscret
             if args.useGAEembedding:
                 # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
                 # print('Mem consumption: '+str(mem))
                 zOut = GAEembedding(zDiscret, adj, args)
-                print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                               start_time)))+"---GAE embedding finished")
+                print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                                 start_time))) + "---GAE embedding finished")
                 # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
                 # print('Mem consumption: '+str(mem))
 
@@ -794,31 +800,31 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
         else:
             resolution = float(args.resolution)
 
-        print('---'+str(datetime.timedelta(seconds=int(time.time()-start_time))
-                        )+"---EM process starts")
+        print('---' + str(datetime.timedelta(seconds=int(time.time() - start_time))
+                          ) + "---EM process starts")
 
         for bigepoch in range(0, args.EM_iteration):
-            print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                           start_time)))+'---Start %sth iteration.' % (bigepoch))
+            print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                             start_time))) + '---Start %sth iteration.' % (bigepoch))
 
             # Now for both methods, we need do clustering, using clustering results to check converge
             # Clustering: Get clusters
             if args.clustering_method == 'Louvain':
                 listResult, size = generateLouvainCluster(edgeList)
                 k = len(np.unique(listResult))
-                print('Louvain cluster: '+str(k))
+                print('Louvain cluster: ' + str(k))
             elif args.clustering_method == 'LouvainK':
                 listResult, size = generateLouvainCluster(edgeList)
                 k = len(np.unique(listResult))
-                print('Louvain cluster: '+str(k))
-                k = int(k*resolution) if int(k*resolution)>=3 else 2
+                print('Louvain cluster: ' + str(k))
+                k = int(k * resolution) if int(k * resolution) >= 3 else 2
                 clustering = KMeans(n_clusters=k, random_state=0).fit(zOut)
                 listResult = clustering.predict(zOut)
             elif args.clustering_method == 'LouvainB':
                 listResult, size = generateLouvainCluster(edgeList)
                 k = len(np.unique(listResult))
-                print('Louvain cluster: '+str(k))
-                k = int(k*resolution) if int(k*resolution)>=3 else 2
+                print('Louvain cluster: ' + str(k))
+                k = int(k * resolution) if int(k * resolution) >= 3 else 2
                 clustering = Birch(n_clusters=k).fit(zOut)
                 listResult = clustering.predict(zOut)
             elif args.clustering_method == 'KMeans':
@@ -850,12 +856,12 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
                 listResult = clustering.predict(zOut)
             elif args.clustering_method == 'OPTICS':
                 clustering = OPTICS(min_samples=int(
-                    args.k/2), min_cluster_size=args.minMemberinCluster).fit(zOut)
+                    args.k / 2), min_cluster_size=args.minMemberinCluster).fit(zOut)
                 listResult = clustering.predict(zOut)
             else:
                 print("Error: Clustering method not appropriate")
-            print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                           start_time)))+"---Clustering Ends")
+            print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                             start_time))) + "---Clustering Ends")
 
             # If clusters more than maxclusters, then have to stop
             if len(set(listResult)) > args.maxClusterNumber or len(set(listResult)) <= 1:
@@ -869,15 +875,15 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
 
             # Debug: Calculate silhouette
             # measure_clustering_results(zOut, listResult)
-            print('Total Cluster Number: '+str(len(set(listResult))))
+            print('Total Cluster Number: ' + str(len(set(listResult))))
             # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
             # print('Mem consumption: '+str(mem))
 
             # Graph regulizated EM AE with Cluster AE, do the additional AE
             if not args.quickmode:
                 # Each cluster has a autoencoder, and organize them back in iteraization
-                print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                               start_time)))+'---Start Cluster Autoencoder.')
+                print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                                 start_time))) + '---Start Cluster Autoencoder.')
                 clusterIndexList = []
                 for i in range(len(set(listResult))):
                     clusterIndexList.append([])
@@ -885,7 +891,7 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
                     assignee = listResult[i]
                     # Avoid bugs for maxClusterNumber
                     if assignee == args.maxClusterNumber:
-                        assignee = args.maxClusterNumber-1
+                        assignee = args.maxClusterNumber - 1
                     clusterIndexList[assignee].append(i)
 
                 reconNew = np.zeros(
@@ -908,8 +914,8 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
                         scDataInter, batch_size=args.batch_size, shuffle=False, **kwargs)
                     for epoch in range(1, args.cluster_epochs + 1):
                         reconCluster, originalCluster, zCluster = train(
-                            epoch,  EMFlag=True)
-                            # epoch, train_loader=train_loader, EMFlag=True)
+                            epoch, EMFlag=True)
+                        # epoch, train_loader=train_loader, EMFlag=True)
                     count = 0
                     for i in clusterIndex:
                         reconNew[i] = reconCluster[count, :]
@@ -940,24 +946,25 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
 
             # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
             # print('Mem consumption: '+str(mem))
-            print('---'+str(datetime.timedelta(seconds=int(time.time()-start_time)))+'---Start Prune')
-            adj, edgeList = generateAdj(zOut, graphType=args.prunetype, para=args.knn_distance+':'+str(
-                args.k), adjTag=(args.useGAEembedding or args.useBothembedding or (bigepoch == int(args.EM_iteration)-1)))
-            print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                           start_time)))+'---Prune Finished')
+            print('---' + str(datetime.timedelta(seconds=int(time.time() - start_time))) + '---Start Prune')
+            adj, edgeList = generateAdj(zOut, graphType=args.prunetype, para=args.knn_distance + ':' + str(
+                args.k), adjTag=(
+                        args.useGAEembedding or args.useBothembedding or (bigepoch == int(args.EM_iteration) - 1)))
+            print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                             start_time))) + '---Prune Finished')
             # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
             # print('Mem consumption: '+str(mem))
 
             # Whether use GAE embedding
             if args.useGAEembedding or args.useBothembedding:
                 zDiscret = zOut > np.mean(zOut, axis=0)
-                zDiscret = 1.0*zDiscret
+                zDiscret = 1.0 * zDiscret
                 if args.useGAEembedding:
                     # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
                     # print('Mem consumption: '+str(mem))
                     zOut = GAEembedding(zDiscret, adj, args)
-                    print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                                   start_time)))+"---GAE embedding finished")
+                    print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                                     start_time))) + "---GAE embedding finished")
                     # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
                     # print('Mem consumption: '+str(mem))
                 elif args.useBothembedding:
@@ -966,40 +973,45 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
 
             # Original save step by step
             if args.saveinternal:
-                print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                               start_time)))+'---Start save internal results')
+                print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                                 start_time))) + '---Start save internal results')
                 reconOut = recon.detach().cpu().numpy()
 
                 # Output
-                print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                               start_time)))+'---Prepare save')
+                print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                                 start_time))) + '---Prepare save')
                 # print('Save results with reconstructed shape:'+str(reconOut.shape)+' Size of gene:'+str(len(genelist))+' Size of cell:'+str(len(celllist)))
                 recon_df = pd.DataFrame(np.transpose(
                     reconOut), index=genelist, columns=celllist)
-                recon_df.to_csv(args.outputDir+args.datasetName+'_'+args.regulized_type+'_'+str(
-                    args.alphaRegularizePara)+'_'+str(args.L1Para)+'_'+str(args.L2Para)+'_recon_'+str(bigepoch)+'.csv')
+                recon_df.to_csv(args.outputDir + args.datasetName + '_' + args.regulized_type + '_' + str(
+                    args.alphaRegularizePara) + '_' + str(args.L1Para) + '_' + str(args.L2Para) + '_recon_' + str(
+                    bigepoch) + '.csv')
                 emblist = []
                 for i in range(zOut.shape[1]):
-                    emblist.append('embedding'+str(i))
+                    emblist.append('embedding' + str(i))
                 embedding_df = pd.DataFrame(zOut, index=celllist, columns=emblist)
-                embedding_df.to_csv(args.outputDir+args.datasetName+'_'+args.regulized_type+'_'+str(
-                    args.alphaRegularizePara)+'_'+str(args.L1Para)+'_'+str(args.L2Para)+'_embedding_'+str(bigepoch)+'.csv')
+                embedding_df.to_csv(args.outputDir + args.datasetName + '_' + args.regulized_type + '_' + str(
+                    args.alphaRegularizePara) + '_' + str(args.L1Para) + '_' + str(args.L2Para) + '_embedding_' + str(
+                    bigepoch) + '.csv')
                 graph_df = pd.DataFrame(
                     edgeList, columns=["NodeA", "NodeB", "Weights"])
-                graph_df.to_csv(args.outputDir+args.datasetName+'_'+args.regulized_type+'_'+str(args.alphaRegularizePara) +
-                                '_'+str(args.L1Para)+'_'+str(args.L2Para)+'_graph_'+str(bigepoch)+'.csv', index=False)
+                graph_df.to_csv(args.outputDir + args.datasetName + '_' + args.regulized_type + '_' + str(
+                    args.alphaRegularizePara) +
+                                '_' + str(args.L1Para) + '_' + str(args.L2Para) + '_graph_' + str(bigepoch) + '.csv',
+                                index=False)
                 results_df = pd.DataFrame(
                     listResult, index=celllist, columns=["Celltype"])
-                results_df.to_csv(args.outputDir+args.datasetName+'_'+args.regulized_type+'_'+str(
-                    args.alphaRegularizePara)+'_'+str(args.L1Para)+'_'+str(args.L2Para)+'_results_'+str(bigepoch)+'.txt')
+                results_df.to_csv(args.outputDir + args.datasetName + '_' + args.regulized_type + '_' + str(
+                    args.alphaRegularizePara) + '_' + str(args.L1Para) + '_' + str(args.L2Para) + '_results_' + str(
+                    bigepoch) + '.txt')
 
-                print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                               start_time)))+'---Save internal completed')
+                print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                                 start_time))) + '---Save internal completed')
 
             # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
             # print('Mem consumption: '+str(mem))
-            print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                           start_time)))+'---Start test converge condition')
+            print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                             start_time))) + '---Start test converge condition')
 
             # Iteration usage
             # If not only use 'celltype', we have to use graph change
@@ -1010,18 +1022,18 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
                 adjGc = nx.adjacency_matrix(Gc)
 
                 # Update new adj
-                adjNew = args.alpha*nlG0 + \
-                    (1-args.alpha) * adjGc/np.sum(adjGc, axis=0)
+                adjNew = args.alpha * nlG0 + \
+                         (1 - args.alpha) * adjGc / np.sum(adjGc, axis=0)
 
                 # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
                 # print('Mem consumption: '+str(mem))
-                print('---'+str(datetime.timedelta(seconds=int(time.time() -
-                                                               start_time)))+'---New adj ready')
+                print('---' + str(datetime.timedelta(seconds=int(time.time() -
+                                                                 start_time))) + '---New adj ready')
 
                 # debug
-                graphChange = np.mean(abs(adjNew-adjOld))
+                graphChange = np.mean(abs(adjNew - adjOld))
                 graphChangeThreshold = args.converge_graphratio * \
-                    np.mean(abs(nlG0))
+                                       np.mean(abs(nlG0))
                 print('adjNew:{} adjOld:{} G0:{}'.format(adjNew, adjOld, nlG0))
                 print('mean:{} threshold:{}'.format(
                     graphChange, graphChangeThreshold))
@@ -1035,7 +1047,7 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
             # Debug Information of clustering results between iterations
             # print(listResultOld)
             # print(listResult)
-            print('celltype similarity:'+str(ari))
+            print('celltype similarity:' + str(ari))
 
             # graph criteria
             if args.converge_type == 'graph':
@@ -1060,12 +1072,12 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
 
             # Update
             listResultOld = listResult
-            print('---'+str(datetime.timedelta(seconds=int(time.time()-start_time))
-                            )+"---"+str(bigepoch)+"th iteration in EM Finished")
+            print('---' + str(datetime.timedelta(seconds=int(time.time() - start_time))
+                              ) + "---" + str(bigepoch) + "th iteration in EM Finished")
 
         # Use new dataloader
-        print('---'+str(datetime.timedelta(seconds=int(time.time()-start_time))
-                        )+"---Starts Imputation")
+        print('---' + str(datetime.timedelta(seconds=int(time.time() - start_time))
+                          ) + "---Starts Imputation")
         # mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         # print('Mem consumption: '+str(mem))
         scDataInter = scDatasetInter(reconOri)
@@ -1110,7 +1122,9 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
             # print('Mem consumption: '+str(mem))
 
         import scanpy as sc
+
         adata = sc.AnnData(data.T)
+
 
         @profile
         def run_scgnn(adata):
@@ -1125,37 +1139,40 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
                 reconOut[threshold_indices] = 0.0
 
             # Output final results
-            print('---'+str(datetime.timedelta(seconds=int(time.time()-start_time))
-                            )+'---All iterations finished, start output results.')
+            print('---' + str(datetime.timedelta(seconds=int(time.time() - start_time))
+                              ) + '---All iterations finished, start output results.')
             # Output imputation Results
             # np.save   (args.npyDir+args.datasetName+'_'+args.regulized_type+'_'+outParaTag+'_recon.npy',reconOut)
             # np.savetxt(args.npyDir+args.datasetName+'_'+args.regulized_type+'_'+outParaTag+'_recon.csv',reconOut,delimiter=",",fmt='%10.4f')
             # Output celltype Results
             recon_df = pd.DataFrame(np.transpose(reconOut),
                                     index=genelist, columns=celllist)
-            recon_df.to_csv(args.outputDir+args.datasetName+'_recon.csv')
+            recon_df.to_csv(args.outputDir + args.datasetName + '_recon.csv')
             emblist = []
             for i in range(zOut.shape[1]):
-                emblist.append('embedding'+str(i))
+                emblist.append('embedding' + str(i))
             embedding_df = pd.DataFrame(zOut, index=celllist, columns=emblist)
-            embedding_df.to_csv(args.outputDir+args.datasetName+'_embedding.csv')
+            embedding_df.to_csv(args.outputDir + args.datasetName + '_embedding.csv')
             graph_df = pd.DataFrame(edgeList, columns=["NodeA", "NodeB", "Weights"])
-            graph_df.to_csv(args.outputDir+args.datasetName+'_graph.csv', index=False)
+            graph_df.to_csv(args.outputDir + args.datasetName + '_graph.csv', index=False)
             # results_df = pd.DataFrame(listResult, index=celllist, columns=["Celltype"])
             # results_df.to_csv(args.outputDir+args.datasetName+'_results.txt')
 
             ##cluster
-            bench_celltype = pd.read_csv(args.datasetDir+args.datasetName+'/'+'cell'+args.datasetName+'_celltype.csv',header=None)
+            bench_celltype = pd.read_csv(
+                args.datasetDir + args.datasetName + '/' + 'cell' + args.datasetName + '_celltype.csv', header=None)
             bench_celltype = bench_celltype.iloc[:, 0].to_numpy().astype(np.int_)
 
             adata.obsm['feat'] = zOut
 
-            return adata, bench_celltype
+            from memory_profiler import memory_usage
+            mem_used = memory_usage(-1, interval=.1, timeout=1)
+            print(max(mem_used))
 
-            # return adata,ari,nmi,bench_celltype,listResult
+            return adata, bench_celltype, max(mem_used)
 
 
-        adata, bench_celltype = run_scgnn(adata)
+        adata, bench_celltype, memory_usage = run_scgnn(adata)
 
         end_time = time.time()
         total_time = end_time - start_time
@@ -1172,8 +1189,8 @@ for dataset in ['2000','4000','8000','16000','32000','64000']:
 
         print(adata)
 
-        method='scGNN'
+        method = 'scGNN'
         np.savez("../results/time_memory/{}/record_cell{}_{}.npz".format(dataset, dataset, method),
-                 time=total_time)
+                 time=total_time, memory_usage=memory_usage)
 
 

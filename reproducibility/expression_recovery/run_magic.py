@@ -1,16 +1,18 @@
-import magic
-import scprep
-import numpy as np
-import scanpy as sc
-import h5py
-import pandas as pd
-from scgraphne import setup_seed
-from sklearn.metrics import mean_squared_error
-from math import sqrt
-from scipy.stats import pearsonr
 import os
+from math import sqrt
 
-for sparity in ['0.8','0.85','0.9','0.95']:
+import h5py
+import magic
+import numpy as np
+import pandas as pd
+import scanpy as sc
+import scprep
+from scipy.stats import pearsonr
+from sklearn.metrics import mean_squared_error
+
+from scbig import setup_seed
+
+for sparity in ['0.8', '0.85', '0.9', '0.95']:
     print('----------------sparity level of data: {} ----------------- '.format(sparity))
     setup_seed(0)
     method = 'MAGIC'
@@ -18,7 +20,7 @@ for sparity in ['0.8','0.85','0.9','0.95']:
     dir1 = '{}'.format(sparity)
     dir2 = 'data_{}.h5'.format(sparity)
 
-    with h5py.File(os.path.join(dir0,'datasets/sim', dir2), 'r') as data_mat:
+    with h5py.File(os.path.join(dir0, 'datasets/sim', dir2), 'r') as data_mat:
         X = np.array(data_mat['X'])
         Xt = np.array(data_mat['X_true'])
         Y = np.array(data_mat['Y'])
@@ -26,7 +28,7 @@ for sparity in ['0.8','0.85','0.9','0.95']:
         Xt = np.ceil(Xt).astype(np.int_)
         Y = np.array(Y).astype(np.int_)
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     adata.obs['cl_type'] = Y
     emt_data_norm, libsize = scprep.normalize.library_size_normalize(adata.X, return_library_size=True)
     emt_data_norm = scprep.transform.sqrt(emt_data_norm)
@@ -51,7 +53,7 @@ for sparity in ['0.8','0.85','0.9','0.95']:
     print(data0.shape)
     X_obs = np.array(data0).reshape(-1)
 
-    YPred = pow(emt_magic,2)/1e4
+    YPred = pow(emt_magic, 2) / 1e4
     YPred = np.dot(np.diag(libsize), YPred)
     X_Impute = np.array(YPred).reshape(-1)
     X_true = np.array(data.values).reshape(-1)
@@ -74,5 +76,3 @@ for sparity in ['0.8','0.85','0.9','0.95']:
     print(pcc_false)
     print(rmse)
     print(pcc)
-
-

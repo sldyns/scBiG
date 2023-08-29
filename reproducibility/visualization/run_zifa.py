@@ -1,19 +1,25 @@
-import numpy as np
-from ZIFA import block_ZIFA
-import h5py
 import os
-import scanpy as sc
-from scgraphne.utils import read_data,louvain,calculate_metric
-
 import random
+
+import h5py
+import numpy as np
+import scanpy as sc
 import tensorflow as tf
+import sys
+sys.path.append('../pkgs/ZIFA/')
+from ZIFA import block_ZIFA
+
+from scbig.utils import read_data, louvain, calculate_metric
+
+
 def seed(SEED):
-    os.environ['PYTHONHASHSEED']=str(SEED)
+    os.environ['PYTHONHASHSEED'] = str(SEED)
     random.seed(SEED)
     np.random.seed(SEED)
     tf.random.set_seed(SEED)
 
-# This gives an example for how to read in a real data called input.table. 
+
+# This gives an example for how to read in a real data called input.table.
 # genes are columns, samples are rows, each number is separated by a space. 
 # If you do not want to install pandas, you can also use np.loadtxt: https://docs.scipy.org/doc/numpy/reference/generated/numpy.loadtxt.html
 
@@ -38,14 +44,14 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             X = np.ceil(X).astype(np.int_)
             Y = np.array(Y).astype(np.int_)
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     adata.obs['cl_type'] = Y
     n_clusters = len(np.unique(Y))
     X = np.log2(1 + X)
     Z, model_params = block_ZIFA.fitModel(X, 64, n_blocks=None)
     adata.obsm['feat'] = Z
     # louvain
-    adata = louvain(adata, resolution=1,use_rep='feat')
+    adata = louvain(adata, resolution=1, use_rep='feat')
     y_pred = np.array(adata.obs['louvain'])
     nmi_l, ari_l = calculate_metric(Y, y_pred)
     print('Clustering Louvain: NMI= %.4f, ARI= %.4f' % (nmi_l, ari_l))
@@ -58,4 +64,3 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
              umap=adata.obsm['X_umap'],
              true=np.array(adata.obs['cl_type'].values.astype(int)),
              louvain=np.array(adata.obs['louvain'].values.astype(int)))
-

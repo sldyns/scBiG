@@ -1,15 +1,19 @@
+import os
+import warnings
+
+import h5py
 import numpy as np
 import scanpy as sc
-import h5py
-import os
-from scgraphne import run_scgraphne, preprocess, read_data, setup_seed, sample
-import warnings
+
+from scbig import run_scbig, preprocess, read_data, setup_seed, sample
+
 warnings.filterwarnings('ignore')
 
-for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_counts','Adam','Human_pancreatic_islets']:
+for dataset in ['10X_PBMC', 'mouse_bladder_cell', 'mouse_ES_cell', 'human_kidney_counts', 'Adam',
+                'Human_pancreatic_islets']:
     print('----------------real data: {} ----------------- '.format(dataset))
     setup_seed(0)
-    method = 'scGraphNE'
+    method = 'scBiG'
     dir0 = '../'
     dir1 = '{}'.format(dataset)
 
@@ -28,7 +32,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             X0 = np.ceil(X0).astype(np.int_)
             Y0 = np.array(Y0).astype(np.int_).squeeze()
 
-    for embedding in ['e0','e2']:
+    for embedding in ['e0', 'e2']:
         print('----------------use cell embedding:{} ----------------- '.format(embedding))
 
         Final_ari_l, Final_nmi_l = [], []
@@ -43,7 +47,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             ##sample
             seed = 10 * t
             X, Y = sample(X0, Y0, seed)
-            adata = sc.AnnData(X)
+            adata = sc.AnnData(X.astype('float'))
             adata.obs['cl_type'] = Y
             n_clusters = len(np.unique(Y))
             adata = preprocess(adata)
@@ -51,7 +55,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             print("Sparsity: ", np.where(adata.X == 0)[0].shape[0] / (adata.X.shape[0] * adata.X.shape[1]))
 
             ###training
-            adata, record = run_scgraphne(adata, cl_type='cl_type', use_rep=embedding, return_all=True)
+            adata, record = run_scbig(adata, cl_type='cl_type', use_rep=embedding, return_all=True)
             print(adata)
 
             final_ari_l = record['ari_l'][-1]
@@ -60,8 +64,8 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             Final_ari_l.append(final_ari_l), Final_nmi_l.append(final_nmi_l), N.append(n_pred)
 
         ## save results
-        np.savez(os.path.join(dir0,"results/ablation/{}/e{}_{}_{}.npz".format(dataset,embedding,dataset,method)),
-             aril=Final_ari_l, nmil=Final_nmi_l)
+        np.savez(os.path.join(dir0, "results/ablation/{}/e{}_{}_{}.npz".format(dataset, embedding, dataset, method)),
+                 aril=Final_ari_l, nmil=Final_nmi_l)
 
         print(Final_nmi_l)
         print(Final_ari_l)

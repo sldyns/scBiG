@@ -31,7 +31,7 @@ zero.rate <- sum(counts==0)/(dim(counts)[1]*dim(counts)[2])
 print(paste0("zero expression rate ", zero.rate))
 
 #save
-name <-paste0("../reproducibility/datasets/time/")
+name <-paste0("./time/")
 name1= paste0("data_cell", cells)
 print(paste0("Creating ... ", name, name1,".h5"))
 h5createFile(paste0(name, name1,".h5"))

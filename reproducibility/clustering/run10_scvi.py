@@ -1,11 +1,14 @@
-import numpy as np
-import h5py
-import scanpy as sc
-import scvi
-from scgraphne.utils import read_data,setup_seed,sample,louvain,calculate_metric
 import os
 
-for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_counts','Adam','Human_pancreatic_islets','Macosko_mouse_retina']:
+import h5py
+import numpy as np
+import scanpy as sc
+import scvi
+
+from scbig.utils import read_data, setup_seed, sample, louvain, calculate_metric
+
+for dataset in ['10X_PBMC', 'mouse_bladder_cell', 'mouse_ES_cell', 'human_kidney_counts', 'Adam',
+                'Human_pancreatic_islets', 'Macosko_mouse_retina']:
     print('----------------real data: {} ----------------- '.format(dataset))
     setup_seed(0)
     method = 'scVI'
@@ -36,7 +39,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
         seed = 10 * t
         X, Y = sample(X0, Y0, seed)
 
-        adata = sc.AnnData(X)
+        adata = sc.AnnData(X.astype('float'))
         adata.obs['cl_type'] = Y
         n_clusters = len(np.unique(Y))
         sc.pp.filter_genes(adata, min_counts=3)
@@ -47,9 +50,8 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
         print(adata)
         print("Sparsity: ", np.where(adata.X == 0)[0].shape[0] / (adata.X.shape[0] * adata.X.shape[1]))
 
-
         ###training
-        scvi.model.SCVI.setup_anndata(adata,layer="counts")
+        scvi.model.SCVI.setup_anndata(adata, layer="counts")
         model = scvi.model.SCVI(adata)
         model.train()
         latent = model.get_latent_representation()

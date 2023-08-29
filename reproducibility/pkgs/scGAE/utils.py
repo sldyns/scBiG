@@ -1,19 +1,18 @@
-import umap
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.cluster import SpectralClustering
 from sklearn.cluster import KMeans
+from sklearn.cluster import SpectralClustering
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.metrics import normalized_mutual_info_score, adjusted_rand_score, homogeneity_score, completeness_score
+
 from clustering import *
+
 
 def myscatter(Y, class_idxs, legend=False, ran=True, seed=229):
     if ran:
         np.random.seed(seed)
     Y = np.array(Y)
-    fig, ax = plt.subplots(figsize=(6,4), dpi=300)
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=300)
     classes = list(np.unique(class_idxs))
     markers = 'osD' * len(classes)
     colors = plt.cm.rainbow(np.linspace(0, 1, len(classes)))
@@ -45,7 +44,6 @@ def dopca(X, dim=10):
     pcaten = PCA(n_components=dim)
     X_10 = pcaten.fit_transform(X)
     return X_10
-
 
 
 def measure(true, pred):
@@ -86,6 +84,7 @@ def dpt(times, h):
     tau, p_value = stats.kendalltau(times, ds)
     return tau, ds
 
+
 def get_centers_louvain(Y, adj):
     from clustering import louvain
     cl_model = louvain(level=0.5)
@@ -94,8 +93,10 @@ def get_centers_louvain(Y, adj):
     centers = computeCentroids(Y, labels)
     return centers, labels
 
+
 def get_centers_spectral(Y, adj):
     from sklearn.cluster import SpectralClustering
-    l = SpectralClustering(n_clusters=10,affinity="precomputed", assign_labels="discretize",random_state=0).fit_predict(adj)
+    l = SpectralClustering(n_clusters=10, affinity="precomputed", assign_labels="discretize",
+                           random_state=0).fit_predict(adj)
     centers = computeCentroids(Y, l)
     return centers, l

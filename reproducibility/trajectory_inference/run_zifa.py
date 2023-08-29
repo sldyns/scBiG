@@ -1,31 +1,36 @@
-import numpy as np
-from ZIFA import block_ZIFA
-import h5py
 import os
-import scanpy as sc
-from scgraphne.utils import louvain,calculate_metric
 import random
+
+import h5py
+import numpy as np
+import scanpy as sc
 import tensorflow as tf
+import sys
+sys.path.append('../pkgs/ZIFA/')
+from ZIFA import block_ZIFA
+
+from scbig.utils import louvain, calculate_metric
+
 
 def seed(SEED):
-    os.environ['PYTHONHASHSEED']=str(SEED)
+    os.environ['PYTHONHASHSEED'] = str(SEED)
     random.seed(SEED)
     np.random.seed(SEED)
     tf.random.set_seed(SEED)
 
-for dataset in ['DPT', 'YAN', 'Deng', 'Buettner']:
+for dataset in ['DPT', 'YAN', 'Deng']:
     print('---------------- data: {} ----------------- '.format(dataset))
     seed(0)
     method = 'ZIFA'
     dir0 = '../'
     dir1 = '{}'.format(dataset)
-    with h5py.File(os.path.join(dir0,'datasets/trajectory/{}.h5'.format(dataset)), 'r') as data_mat:
+    with h5py.File(os.path.join(dir0, 'datasets/trajectory/{}.h5'.format(dataset)), 'r') as data_mat:
         X = np.array(data_mat['X'])
         Y = np.array(data_mat['Y'])
         X = np.ceil(X).astype(np.int_)
         Y = np.array(Y).astype(np.int_).squeeze()
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     X = np.log2(1 + X)
     Z, model_params = block_ZIFA.fitModel(X, 64, n_blocks=None)
     adata.obsm['X_zifa'] = Z
@@ -39,7 +44,7 @@ for dataset in ['DPT', 'YAN', 'Deng', 'Buettner']:
     sc.tl.umap(adata)
     print(adata)
 
-    np.savez(os.path.join(dir0,"results/trajectory_inference/{}/{}_{}.npz".format(dataset,dataset,method)),
+    np.savez(os.path.join(dir0, "results/trajectory_inference/{}/{}_{}.npz".format(dataset, dataset, method)),
              true=Y,
              umap=adata.obsm['X_umap'],
              latent=Z,

@@ -1,22 +1,19 @@
-from tensorflow.keras.models import Model
-from tensorflow.keras.losses import MSE, KLD
-from tensorflow.keras.layers import Dense, Dropout, Input, Lambda
-from spektral.layers import GraphAttention, TAGConv
-from losses import dist_loss
-from tensorflow.keras.initializers import GlorotUniform
-from layers import *
-from preprocessing import *
-from utils import *
-from losses import *
-from clustering import *
-import tensorflow_probability as tfp
 import numpy as np
+import tensorflow_probability as tfp
+from spektral.layers import GraphAttention, TAGConv
+from tensorflow.keras.initializers import GlorotUniform
+from tensorflow.keras.layers import Dense, Dropout, Input, Lambda
+from tensorflow.keras.losses import MSE, KLD
+from tensorflow.keras.models import Model
+
+from layers import *
+from losses import *
 
 
 class SCGAE(tf.keras.Model):
 
     def __init__(self, X, adj, adj_n, hidden_dim=120, latent_dim=15, dec_dim=None, adj_dim=32,
-                 decA="DBL", layer_enc = "GAT"):
+                 decA="DBL", layer_enc="GAT"):
         super(SCGAE, self).__init__()
         if dec_dim is None:
             dec_dim = [64, 256, 512]
@@ -35,12 +32,13 @@ class SCGAE(tf.keras.Model):
         h = Dropout(0.2)(X_input)
         if layer_enc == "GAT":
             A_in = Input(shape=self.n_sample)
-            h = GraphAttention(channels=hidden_dim, attn_heads=1, kernel_initializer=initializer, activation="relu")([h, A_in])
+            h = GraphAttention(channels=hidden_dim, attn_heads=1, kernel_initializer=initializer, activation="relu")(
+                [h, A_in])
             z_mean = GraphAttention(channels=latent_dim, kernel_initializer=initializer, attn_heads=1)([h, A_in])
         elif layer_enc == "TAG":
             self.sparse = True
             A_in = Input(shape=self.n_sample, sparse=True)
-            h = TAGConv(channels=hidden_dim,kernel_initializer=initializer, activation="relu")([h, A_in])
+            h = TAGConv(channels=hidden_dim, kernel_initializer=initializer, activation="relu")([h, A_in])
             z_mean = TAGConv(channels=latent_dim, kernel_initializer=initializer)([h, A_in])
 
         self.encoder = Model(inputs=[X_input, A_in], outputs=z_mean, name="encoder")
@@ -74,9 +72,8 @@ class SCGAE(tf.keras.Model):
         decx_out = Dense(units=self.in_dim)(h)
         self.decoderX = Model(inputs=decx_in, outputs=decx_out, name="decoderX")
 
-
     def train(self, epochs=80, info_step=10, lr=2e-3, W_a=0.4, W_x=1,
-                  W_d=0, min_dist=0.5, max_dist=20):
+              W_d=0, min_dist=0.5, max_dist=20):
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
         if self.sparse == True:
@@ -89,7 +86,7 @@ class SCGAE(tf.keras.Model):
                 X_out = self.decoderX(z)
                 A_out = self.decoderA(z)
                 if W_d:
-                    Dist_loss = tf.reduce_mean(dist_loss(z, min_dist, max_dist = max_dist))
+                    Dist_loss = tf.reduce_mean(dist_loss(z, min_dist, max_dist=max_dist))
                 A_rec_loss = tf.reduce_mean(MSE(self.adj, A_out))
                 X_rec_loss = tf.reduce_mean(MSE(self.X, X_out))
                 loss = W_a * A_rec_loss + W_x * X_rec_loss
@@ -103,13 +100,12 @@ class SCGAE(tf.keras.Model):
             if epoch % info_step == 0:
                 if W_d:
                     print("Epoch", epoch, " X_rec_loss:", X_rec_loss.numpy(), "  A_rec_loss:", A_rec_loss.numpy(),
-                      "  Dist_loss:", Dist_loss.numpy())
+                          "  Dist_loss:", Dist_loss.numpy())
                 else:
                     print("Epoch", epoch, " X_rec_loss:", X_rec_loss.numpy(), "  A_rec_loss:", A_rec_loss.numpy())
         print("Pre_train Finish!")
 
     def clustering_train(self, epochs=40, lr=5e-4, W_c=0.8, W_a=0.4, W_x=0.1, info_step=10, n_update=8, centers=None):
-
 
         self.cluster_model.get_layer(name='clustering').clusters = centers
 
@@ -117,7 +113,7 @@ class SCGAE(tf.keras.Model):
         optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
         q = self.cluster_model([self.X, self.adj_n])
         p = self.target_distribution(q)
-        for epoch in range(1, epochs+1):
+        for epoch in range(1, epochs + 1):
             if epoch % n_update == 0:
                 q = self.cluster_model([self.X, self.adj_n])
                 p = self.target_distribution(q)
@@ -161,5 +157,3 @@ class SCGAE(tf.keras.Model):
         clusters = self.cluster_model([count, adj_n]).numpy()
         labels = np.array(clusters.argmax(1))
         return labels.reshape(-1, )
-
-

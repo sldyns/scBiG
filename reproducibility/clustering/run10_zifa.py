@@ -1,24 +1,31 @@
-import numpy as np
-from ZIFA import block_ZIFA
-import h5py
 import os
-import scanpy as sc
-from scgraphne.utils import read_data,sample,louvain,calculate_metric
-
 import random
+
+import h5py
+import numpy as np
+import scanpy as sc
 import tensorflow as tf
+import sys
+sys.path.append('../pkgs/ZIFA/')
+from ZIFA import block_ZIFA
+
+from scbig.utils import read_data, sample, louvain, calculate_metric
+
+
 def seed(SEED):
-    os.environ['PYTHONHASHSEED']=str(SEED)
+    os.environ['PYTHONHASHSEED'] = str(SEED)
     random.seed(SEED)
     np.random.seed(SEED)
     tf.random.set_seed(SEED)
 
-for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_counts','Adam','Human_pancreatic_islets','Macosko_mouse_retina']:
+
+for dataset in ['10X_PBMC', 'mouse_bladder_cell', 'mouse_ES_cell', 'human_kidney_counts', 'Adam',
+                'Human_pancreatic_islets', 'Macosko_mouse_retina']:
     print('----------------real data: {} ----------------- '.format(dataset))
     seed(0)
     method = 'ZIFA'
     dir0 = '../'
-    
+
     if dataset in ['Adam']:
         mat, obs, var, uns = read_data(os.path.join(dir0, 'datasets/real/{}.h5'.format(dataset)), sparsify=False,
                                        skip_exprs=False)
@@ -41,7 +48,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
         ##sample
         seed = 10 * t
         X, Y = sample(X0, Y0, seed)
-        adata=sc.AnnData(X)
+        adata = sc.AnnData(X.astype('float'))
         adata.obs['cl_type'] = Y
         n_clusters = len(np.unique(Y))
         X = np.log2(1 + X)
@@ -49,7 +56,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
         adata.obsm['feat'] = Z
 
         # louvain
-        adata = louvain(adata, resolution=1,use_rep='feat')
+        adata = louvain(adata, resolution=1, use_rep='feat')
         y_pred = np.array(adata.obs['louvain'])
         n_pred = len(np.unique(y_pred))
         nmi_l, ari_l = calculate_metric(Y, y_pred)
@@ -63,4 +70,3 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
     print(NMI_l)
     print(ARI_l)
     print(N)
-

@@ -1,11 +1,14 @@
-from ica import ica1
-import scanpy as sc
+import os
+
 import h5py
 import numpy as np
-import os
-from scgraphne.utils import setup_seed,louvain,calculate_metric
+import scanpy as sc
+from ica import ica1
 
-def preprocess(adata,scale=True):
+from scbig.utils import setup_seed, louvain, calculate_metric
+
+
+def preprocess(adata, scale=True):
     sc.pp.filter_genes(adata, min_cells=3)
     sc.pp.filter_cells(adata, min_genes=200)
     sc.pp.normalize_total(adata, target_sum=1e4)
@@ -16,7 +19,7 @@ def preprocess(adata,scale=True):
         print('no scale!')
     return adata
 
-for dataset in ['DPT', 'YAN', 'Deng', 'Buettner']:
+for dataset in ['DPT', 'YAN', 'Deng']:
     print('----------------real data: {} ----------------- '.format(dataset))
     setup_seed(0)
     method = 'ICA'
@@ -29,7 +32,7 @@ for dataset in ['DPT', 'YAN', 'Deng', 'Buettner']:
         X = np.ceil(X).astype(np.int_)
         Y = np.array(Y).astype(np.int_).squeeze()
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     adata.obs['true'] = Y
     adata = preprocess(adata)
     print(adata)
@@ -52,5 +55,3 @@ for dataset in ['DPT', 'YAN', 'Deng', 'Buettner']:
              latent=adata.obsm['X_ica'],
              data=adata.X,
              louvain=np.array(adata.obs['louvain'].values.astype(int)))
-
-

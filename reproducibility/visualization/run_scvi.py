@@ -1,9 +1,11 @@
-import numpy as np
+import os
+
 import h5py
+import numpy as np
 import scanpy as sc
 import scvi
-from scgraphne.utils import setup_seed,read_data,louvain,calculate_metric
-import os
+
+from scbig.utils import setup_seed, read_data, louvain, calculate_metric
 
 for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_counts','Adam','Human_pancreatic_islets','Macosko_mouse_retina']:
     print('----------------real data: {} ----------------- '.format(dataset))
@@ -26,7 +28,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             X = np.ceil(X).astype(np.int_)
             Y = np.array(Y).astype(np.int_).squeeze()
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     adata.obs['cl_type'] = Y
     n_clusters = len(np.unique(Y))
 
@@ -39,7 +41,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
     print("Sparsity: ", np.where(adata.X == 0)[0].shape[0] / (adata.X.shape[0] * adata.X.shape[1]))
 
     ###training
-    scvi.model.SCVI.setup_anndata(adata,layer="counts")
+    scvi.model.SCVI.setup_anndata(adata, layer="counts")
     model = scvi.model.SCVI(adata)
     model.train()
     latent = model.get_latent_representation()
@@ -48,7 +50,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
         library_size=10e4)
 
     # louvain
-    adata = louvain(adata, resolution=1,use_rep='X_scVI')
+    adata = louvain(adata, resolution=1, use_rep='X_scVI')
     y_pred_l = np.array(adata.obs['louvain'])
     n_pred = len(np.unique(y_pred_l))
     nmi_l, ari_l = np.round(calculate_metric(Y, y_pred_l), 4)
@@ -57,7 +59,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
     sc.tl.umap(adata)
     print(adata)
 
-    np.savez(os.path.join(dir0,"results/visualization/{}/record_{}_{}.npz".format(dataset,dataset,method)),
+    np.savez(os.path.join(dir0, "results/visualization/{}/record_{}_{}.npz".format(dataset, dataset, method)),
              ari=ari_l, nmi=nmi_l,
              umap=adata.obsm['X_umap'],
              true=np.array(adata.obs['cl_type'].values.astype(int)),

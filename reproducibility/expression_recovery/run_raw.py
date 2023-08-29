@@ -1,27 +1,29 @@
-import numpy as np
-import scanpy as sc
-import h5py
-import pandas as pd
 import os
-from scgraphne import setup_seed
-from sklearn.metrics import mean_squared_error
 from math import sqrt
-from scipy.stats import pearsonr
 
-for sparity in ['0.8','0.85','0.9','0.95']:
+import h5py
+import numpy as np
+import pandas as pd
+import scanpy as sc
+from scipy.stats import pearsonr
+from sklearn.metrics import mean_squared_error
+
+from scbig import setup_seed
+
+for sparity in ['0.8', '0.85', '0.9', '0.95']:
     print('----------------sparity level of data: {} ----------------- '.format(sparity))
     setup_seed(0)
     method = 'Raw'
     dir0 = '../'
     dir1 = '{}'.format(sparity)
     dir2 = 'data_{}.h5'.format(sparity)
-    data_mat = h5py.File(os.path.join(dir0,'datasets/sim', dir2), "r")
+    data_mat = h5py.File(os.path.join(dir0, 'datasets/sim', dir2), "r")
     X = np.array(data_mat['X'])
     Xt = np.array(data_mat['X_true'])
     Y = np.array(data_mat['Y'])
     n_clusters = len(np.unique(Y))
 
-    adata = sc.AnnData(X)
+    adata = sc.AnnData(X.astype('float'))
     sc.pp.filter_genes(adata, min_cells=3)
     sc.pp.filter_cells(adata, min_genes=200)
     print(adata)
@@ -54,11 +56,10 @@ for sparity in ['0.8','0.85','0.9','0.95']:
 
     ##save results
     np.savez(os.path.join(dir0, "results/expression_recovery/{}/result_{}_{}.npz".format(sparity, sparity, method)),
-                 rmsed=rmse_false, pccd=pcc_false,
-                 rmse=rmse, pcc=pcc)
+             rmsed=rmse_false, pccd=pcc_false,
+             rmse=rmse, pcc=pcc)
 
     print(rmse_false)
     print(pcc_false)
     print(rmse)
     print(pcc)
-

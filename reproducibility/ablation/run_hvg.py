@@ -1,15 +1,19 @@
+import os
+import warnings
+
+import h5py
 import numpy as np
 import scanpy as sc
-import h5py
-import os
-from scgraphne import run_scgraphne, preprocess, read_data, setup_seed, sample
-import warnings
+
+from scbig import run_scbig, preprocess, read_data, setup_seed, sample
+
 warnings.filterwarnings('ignore')
 
-for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_counts','Adam','Human_pancreatic_islets']:
+for dataset in ['10X_PBMC', 'mouse_bladder_cell', 'mouse_ES_cell', 'human_kidney_counts', 'Adam',
+                'Human_pancreatic_islets']:
     print('----------------real data: {} ----------------- '.format(dataset))
     setup_seed(0)
-    method = 'scGraphNE'
+    method = 'scBiG'
     dir0 = '../'
     dir1 = '{}'.format(dataset)
 
@@ -43,7 +47,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             ##sample
             seed = 10 * t
             X, Y = sample(X0, Y0, seed)
-            adata = sc.AnnData(X)
+            adata = sc.AnnData(X.astype('float'))
             adata.obs['cl_type'] = Y
             adata = preprocess(adata)
 
@@ -55,7 +59,7 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             n_clusters = len(np.unique(Y))
 
             ###training
-            adata, record = run_scgraphne(adata, cl_type='cl_type', return_all=True)
+            adata, record = run_scbig(adata, cl_type='cl_type', return_all=True)
 
             print(adata)
 
@@ -65,8 +69,10 @@ for dataset in ['10X_PBMC','mouse_bladder_cell','mouse_ES_cell','human_kidney_co
             Final_ari_l.append(final_ari_l), Final_nmi_l.append(final_nmi_l), N.append(n_pred)
 
         ## save results
-        np.savez(os.path.join(dir0,"results/ablation/{}/hvg{}_{}_{}.npz".format(dataset,highly_variable_genes,dataset,method)),
-             aril=Final_ari_l, nmil=Final_nmi_l)
+        np.savez(os.path.join(dir0,
+                              "results/ablation/{}/hvg{}_{}_{}.npz".format(dataset, highly_variable_genes, dataset,
+                                                                           method)),
+                 aril=Final_ari_l, nmil=Final_nmi_l)
 
         print(Final_nmi_l)
         print(Final_ari_l)
