@@ -7,13 +7,13 @@ try:
     with open(os.path.join(path, 'README.md'), "r", encoding='utf-8') as f:
         long_description = f.read()
 except Exception as e:
-    long_description = "scBiG: a novel scRNA-seq representation learning method based on graph node embedding"
+    long_description = "scBiG for representation learning of single-cell gene expression data based on bipartite graph embedding"
 
 setup(
     name="scbig",
-    version="0.1.0",
+    version="0.1.1",
     keywords=["single-cell RNA-sequencing", "Graph node embedding", "Dimensionality reduction"],
-    description="scBiG: a novel scRNA-seq representation learning method based on graph node embedding",
+    description="scBiG for representation learning of single-cell gene expression data based on bipartite graph embedding",
     long_description=long_description,
     long_description_content_type='text/markdown',
     license="MIT Licence",
@@ -34,7 +34,7 @@ setup(
         "dgl",
         "pandas",
         "scipy",
-        "sklearn",
+        "scikit-learn",
         "louvain"
         ],
     platforms='any'

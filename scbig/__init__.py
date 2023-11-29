@@ -15,4 +15,4 @@ __name__ = "scbig"
 try:
     __version__ = version(__name__)
 except importlib.metadata.PackageNotFoundError:
-    __version__ = '0.1.0'
+    __version__ = '0.1.1'

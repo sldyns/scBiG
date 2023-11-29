@@ -1,4 +1,4 @@
-# scBiG: a novel scRNA-seq representation learning method based on graph node embedding
+# scBiG for representation learning of single-cell gene expression data based on bipartite graph embedding
 
 ## Overview
 
