@@ -47,9 +47,11 @@ for ( i in 1:length(t)) {
   
   rmse <- sqrt(mean((real-pred)^2))
   cor <- cor(real,pred, method = 'pearson')
+  spear <- cor(real,pred, method = 'spearman')
   
   rmsed <- sqrt(mean((real[X]-pred[X])^2))
   cord <- cor(real[X],pred[X], method = 'pearson')
+  speard <- cor(real[X],pred[X], method = 'spearman')
   
   root <-paste0("../results/expression_recovery/")
   plot <-paste0("result_",name,"_",method)
@@ -57,6 +59,9 @@ for ( i in 1:length(t)) {
            rmse=round(rmse,4),
            rmsed=round(rmsed,4),
            pcc=round(cor,4),
-           pccd=round(cord,4))
+           pccd=round(cord,4),
+           spear=round(spear,4),
+           speard=round(speard,4)
+  )
   rm()
   }

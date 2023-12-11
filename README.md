@@ -28,11 +28,9 @@ Load the data to be analyzed:
 
 ```python
 import scanpy as sc
-
+# data is the count matrix
 adata = sc.AnnData(data)
 ```
-
-
 
 Perform data pre-processing:
 
@@ -47,6 +45,7 @@ adata.raw = adata.copy()
 sc.pp.normalize_per_cell(adata)
 adata.obs['cs_factor'] = adata.obs.n_counts / np.median(adata.obs.n_counts)
 sc.pp.log1p(adata)
+# Calculate the gene size factor 
 adata.var['gs_factor'] = np.max(adata.X, axis=0, keepdims=True).reshape(-1)
 ```
 

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import scvi
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr,spearmanr
 from sklearn.metrics import mean_squared_error
 
 from scbig import setup_seed
@@ -75,13 +75,22 @@ for sparity in ['0.8', '0.85', '0.9', '0.95']:
 
     pcc = float('%.4f' % pearsonr(X_Impute, X_true)[0])
     pcc_false = float('%.4f' % pearsonr(X_Impute[dropout], X_true[dropout])[0])
-    print('RMSE_false: {:.4f}, PCC_false: {:.4f}, RMSE: {:.4f},PCC: {:.4f}'.format(rmse_false, pcc_false, rmse, pcc))
 
+    spear = float('%.4f' % spearmanr(X_Impute, X_true)[0])
+    spear_false = float('%.4f' % spearmanr(X_Impute[dropout], X_true[dropout])[0])
+
+    print('RMSE_false: {:.4f}, PCC_false: {:.4f},Spearman_false: {:.4f},RMSE: {:.4f},PCC: {:.4f}, Spearman: {:.4f}'.format(
+            rmse_false, pcc_false, spear_false, rmse, pcc, spear))
+
+    ##save results
     np.savez(os.path.join(dir0, "results/expression_recovery/{}/result_{}_{}.npz".format(sparity, sparity, method)),
-             rmsed=rmse_false, pccd=pcc_false,
-             rmse=rmse, pcc=pcc)
+             rmsed=rmse_false, pccd=pcc_false, speard=spear_false,
+             rmse=rmse, pcc=pcc, spear=spear)
 
     print(rmse_false)
     print(pcc_false)
+    print(spear_false)
     print(rmse)
     print(pcc)
+    print(spear)
+
