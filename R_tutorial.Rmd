@@ -1,0 +1,114 @@
+---
+title: "R tutorial of scBiG"
+output: html_document
+---
+In this tutorial, we go over how to use basic scBiG functionality in R. If users have done preprocessing with `Seurat` and would like to continue to use scBiG, they can refer to this tutorial. It requires `reticulate` and `sceasy`, please install `reticulate`, `sceasy` and `scbig` first. However, for more involved analyses, we suggest using scBiG from Python.
+
+## Load required packages
+```{r packages,message = FALSE,warning = FALSE}
+library(Seurat)
+library(dplyr)
+library(patchwork)
+library(R.utils)
+library(rhdf5)
+library(hdf5r)
+library(sceasy)
+library(Matrix)
+library(igraph) 
+library(reticulate)
+library(anndata)
+```
+
+## Specify Python environment
+Here is the virtual environment used during scBig testing. Users can modify it according to actual conditions.
+```{r,warning = FALSE}
+use_condaenv("base")
+```
+
+## Load data
+This data could be downloaded from <https://drive.google.com/drive/folders/1JX589QWH7N895cAMAdJR9KDaFEigy1r3>.
+
+Here is the example dataset (`h5` file) where `X` is the count matrix and `Y` is the cell type label. Notably, scBiG is an unsupervised architecture and the cell type label is solely used for visualization and calculation of clustering metrics. 
+
+You can specify the path of your data here:
+```{r}
+name  <- "Human_pancreatic_islets"
+dataPath <- paste0("./", name, ".h5")
+raw_count <- h5read(dataPath, "X")
+celltype <- h5read(dataPath, "Y")
+celltype <- as.character(celltype)
+colnames <- colnames(raw_count, do.NULL = FALSE)
+rownames <- rownames(raw_count, do.NULL = FALSE)
+colnames(raw_count) <- colnames
+rownames(raw_count) <- rownames
+real.data <- raw_count
+```
+
+## Create Seurat objects and data pre-processing
+```{r}
+options(Seurat.object.assay.version = "v3")
+data <- CreateSeuratObject(counts = real.data,min.cells = 3, min.features = 200)
+data <- NormalizeData(data, normalization.method = "LogNormalize", scale.factor = 10000)
+# Calculate cs_factor
+data@meta.data$cs_factor <- data@meta.data$nCount_RNA / median(data@meta.data$nCount_RNA)
+data@meta.data$celltype <- celltype
+# Calculate gs_factor
+data[["RNA"]]@meta.features$gs_factor <- apply(data[["RNA"]]$data, 1, max)
+
+# Select high variable genes (Optional)
+data <- FindVariableFeatures(data, verbose = FALSE)
+top2000 <- head(VariableFeatures(data), 2000)
+data <- data[top2000]
+```
+
+## Convert Seurat objects into AnnData objects
+```{r}
+adata <- convertFormat(data, from="seurat", to="anndata", main_layer="counts", drop_single_values=FALSE)
+adata$X = adata$X$todense()
+adata$raw = adata
+```
+
+## Train scBiG
+In default mode, the function `run_scbig` takes a preprocessed AnnData object as input. The output returns the updated AnnData object with cell embeddings stored in `adata.obsm['feat']` and louvain clustering results stored in `adata.obs['louvain']`.
+
+In addition, function `run_scbig` would print and return all results during each logging training:
+
+- all_loss: loss of training
+
+- ari_k: ARI of KMeans
+
+- ari_l: ARI of Louvain
+
+- nmi_k: NMI of KMeans
+
+- nmi_l: NMI of Louvain
+```{r}
+scbig <- import("scbig", convert = FALSE)
+
+scbig$setup_seed(as.integer(100))  #setup seed of scBiG
+print("Training scBiG...")
+result <- scbig$run_scbig(adata, cl_type = 'celltype', return_all = TRUE)
+adata <- result[[0]]
+record <- result[[1]]
+```
+
+## Visualization
+```{r}
+cell_feat <- py_to_r(adata$obsm$get('feat'))
+gene_feat <- py_to_r(adata$varm$get('feat'))
+rownames(cell_feat) <- colnames(data)
+rownames(gene_feat) <- rownames(data)
+
+data@reductions$scbig <- CreateDimReducObject(embeddings = cell_feat, loadings = gene_feat, key='scbig', assay='RNA')
+data <- FindNeighbors(data, reduction = 'scbig', dims = 1:64)
+data <- FindClusters(data, resolution = 1, cluster.name = "scbig_clusters")
+data <- RunUMAP(data, reduction = "scbig", dims = 1:64, reduction.name = "umap.scbig")
+
+DimPlot(
+    data,
+    reduction = "umap.scbig",
+    group.by = c("celltype", "scbig_clusters"),
+    combine = FALSE, label.size = 2
+)
+
+```

@@ -22,6 +22,7 @@ pip install -e .
 
 in the root of this repository.
 
+For GPU users, please install the GPU version of `dgl`, it is available by visiting the official website: https://www.dgl.ai/pages/start.html
 ## Quick start
 
 Load the data to be analyzed:
@@ -32,7 +33,7 @@ import scanpy as sc
 adata = sc.AnnData(data)
 ```
 
-Perform data pre-processing:
+Perform data pre-processing with `scanpy`:
 
 ```python
 # Basic filtering
@@ -56,6 +57,9 @@ from scbig import run_scbig
 adata = run_scbig(adata)
 ```
 
-The output adata contains the cell embeddings in `adata.obsm['feat']` and the gene embeddings in `adata.obsm['feat']`. The embeddings can be used as input of other downstream analyses.
+The output `adata` contains the cell embeddings in `adata.obsm['feat']` and the gene embeddings in `adata.varm['feat']`. The embeddings can be used as input of other downstream analyses.
 
 Please refer to `tutorial.ipynb` for a detailed description of scBiG's usage.
+
+If users use Seurat for pre-processing and then use scBiG for subsequent analysis, we provide `R_tutorial.Rmd` as a reference.
+
